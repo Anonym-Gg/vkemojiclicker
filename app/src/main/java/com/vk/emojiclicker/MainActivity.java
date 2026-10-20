@@ -429,6 +429,13 @@ public class MainActivity extends AppCompatActivity {
         overlayBtn.setOnClickListener(v -> toggleOverlay());
         toolbar.addView(overlayBtn);
 
+        // diagnostics button: one full pass with detailed report
+        Button diagBtn = new Button(this);
+        diagBtn.setText("Диагностика (проверить всё)");
+        diagBtn.setTextSize(13);
+        diagBtn.setOnClickListener(v -> runDiagnostics());
+        toolbar.addView(diagBtn);
+
         // floating bubble (collapsed mode) — draggable, tap to expand
         bubble = new TextView(this);
         bubble.setText("⚔️");
@@ -542,6 +549,62 @@ public class MainActivity extends AppCompatActivity {
                 () -> { /* открыть настройки в приложении: развернуть панель */ });
         overlay.show();
         Toast.makeText(this, "Пузырь ⚔️ поверх экрана. Перетащи его в угол, чтобы не мешал поиску", Toast.LENGTH_LONG).show();
+    }
+
+    void runDiagnostics() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("ШАГ 1. Доступность: ");
+        sb.append(VkClickerService.getInstance() != null ? "ВКЛ ✅" : "ВЫКЛ ❌").append("\n");
+        sb.append("ШАГ 2. Захват экрана: ");
+        sb.append(CaptureService.isCapturing() ? "ВКЛ ✅" : "ВЫКЛ ❌").append("\n");
+        sb.append("ШАГ 3. Шаблоны: приоритет=");
+        sb.append(getPriorityTemplate() != null ? "есть" : "НЕТ");
+        sb.append(", не приоритет=" + (getNormalTemplate() != null ? "есть" : "НЕТ")).append("\n");
+        handler.post(() -> {
+            Bitmap shot = captureWebView();
+            new Thread(() -> {
+                if (shot == null) {
+                    sb.append("ШАГ 4. Скриншот: НЕ ПОЛУЧИЛСЯ ❌\n");
+                    showDiag(sb.toString());
+                    return;
+                }
+                sb.append("ШАГ 4. Скриншот: " + shot.getWidth() + "x" + shot.getHeight()).append("\n");
+                if (isEmptyFrame(shot)) {
+                    sb.append("ШАГ 5. Скриншот ПУСТОЙ ❌ (не видно приложения)\n");
+                    showDiag(sb.toString());
+                    return;
+                }
+                sb.append("ШАГ 5. Скриншот непустой ✅\n");
+                Bitmap roi = cropZone(shot);
+                int offset = roi != null ? zoneOffsets[0] : 0;
+                float ms = getSensitivity();
+                sb.append("ШАГ 6. Чувствительность порога: " + Math.round(ms * 100) + "%\n");
+                if (getPriorityTemplate() != null) {
+                    TemplateMatcher.Match m1 = TemplateMatcher.findBest(roi, getPriorityTemplate());
+                    sb.append("ШАГ 7. Приоритет ⚔️: " + (m1 != null ? Math.round(m1.score * 100) + "% (x=" + m1.x + ",y=" + (m1.y + offset) + ")" : "не найден")).append("\n");
+                }
+                if (getNormalTemplate() != null) {
+                    TemplateMatcher.Match m2 = TemplateMatcher.findBest(roi, getNormalTemplate());
+                    sb.append("ШАГ 8. Не приоритет 🎁: " + (m2 != null ? Math.round(m2.score * 100) + "% (x=" + m2.x + ",y=" + (m2.y + offset) + ")" : "не найден")).append("\n");
+                }
+                sb.append("ШАГ 9. Клик-сервис: " + (VkClickerService.getInstance() != null ? "готов" : "НЕТ ❌")).append("\n");
+                showDiag(sb.toString());
+            }).start();
+        });
+    }
+
+    void showDiag(String text) {
+        handler.post(() -> {
+            try {
+                new androidx.appcompat.app.AlertDialog.Builder(this)
+                        .setTitle("Диагностика")
+                        .setMessage(text)
+                        .setPositiveButton("ОК", null)
+                        .show();
+            } catch (Exception e) {
+                Toast.makeText(this, text, Toast.LENGTH_LONG).show();
+            }
+        });
     }
 
     void requestScreenCapture() {
