@@ -43,10 +43,9 @@ public class MainActivity extends AppCompatActivity {
     FrameLayout mainFrame;
     WebView webView;
     CursorOverlay cursorOverlay;
-    ScrollView emojiPicker;
+    ScrollView pickerPanel;
     Handler handler = new Handler(Looper.getMainLooper());
 
-    String currentEmoji = "⚔️";
     boolean autoLoop = false;
 
     // Attached photo templates (from gallery), priority & normal
@@ -173,7 +172,6 @@ public class MainActivity extends AppCompatActivity {
         bmp = trim(bmp);
         if (requestCode == PICK_PRIORITY) {
             priorityTemplate = bmp;
-            currentEmoji = "[приоритет]";
             if (priorityFileTv != null)
                 priorityFileTv.setText("Фото прикреплено ✓ (" + bmp.getWidth() + "x" + bmp.getHeight() + ")");
         } else if (requestCode == PICK_NORMAL) {
@@ -197,9 +195,9 @@ public class MainActivity extends AppCompatActivity {
         toolbar.setPadding(dp(8), dp(4), dp(8), dp(4));
         toolbar.setBackgroundColor(0xFF2B2B2B);
 
-        // photo picker panels: priority & normal
-        emojiPicker = new ScrollView(this);
-        emojiPicker.setLayoutParams(new LinearLayout.LayoutParams(
+        // photo picker panels: priority & normal (no emoji grid at all)
+        pickerPanel = new ScrollView(this);
+        pickerPanel.setLayoutParams(new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(170)));
         LinearLayout pickerWrap = new LinearLayout(this);
         pickerWrap.setOrientation(LinearLayout.VERTICAL);
@@ -207,7 +205,7 @@ public class MainActivity extends AppCompatActivity {
         addPhotoPanel(pickerWrap, "ПРИОРИТЕТ (прикрепи фото эмодзи)", PICK_PRIORITY, true);
         addPhotoPanel(pickerWrap, "НЕ ПРИОРИТЕТ (прикрепи фото эмодзи)", PICK_NORMAL, false);
 
-        emojiPicker.addView(pickerWrap);
+        pickerPanel.addView(pickerWrap);
 
         // buttons: Search once / Auto / Stop
         LinearLayout btns = new LinearLayout(this);
@@ -242,7 +240,7 @@ public class MainActivity extends AppCompatActivity {
         searchBtn.setLayoutParams(lpB); autoBtn.setLayoutParams(lpB); stopBtn.setLayoutParams(lpB);
         btns.addView(searchBtn); btns.addView(autoBtn); btns.addView(stopBtn);
 
-        toolbar.addView(emojiPicker);
+        toolbar.addView(pickerPanel);
         toolbar.addView(btns);
 
         // WebView fills the rest
