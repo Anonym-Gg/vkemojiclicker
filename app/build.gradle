@@ -1,10 +1,5 @@
 apply plugin: 'com.android.application'
 
-repositories {
-    google()
-    mavenCentral()
-}
-
 android {
     namespace 'com.vk.emojiclicker'
     compileSdk 34
