@@ -25,7 +25,7 @@ public class TemplateMatcher {
         return m;
     }
 
-    static final float[] SCALES = {0.45f, 0.6f, 0.8f, 1.0f, 1.25f, 1.5f};
+    static final float[] SCALES = {0.7f, 0.85f, 1.0f, 1.2f};
 
     /** Всегда возвращает лучшее совпадение (даже ниже порога) или null, если шаблон больше экрана. */
     public static Match findBest(Bitmap screen, Bitmap template) {

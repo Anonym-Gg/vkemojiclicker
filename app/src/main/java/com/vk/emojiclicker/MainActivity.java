@@ -84,6 +84,17 @@ public class MainActivity extends AppCompatActivity {
 
         prefs = getSharedPreferences("vk_emoji_pro", MODE_PRIVATE);
 
+        // One-time migration: after an update the old saved sensitivity may block matches.
+        // If the stored version is older or sensitivity is unreasonably high, reset settings to defaults
+        // (keep the license key untouched).
+        int storedVersion = prefs.getInt("ver", 0);
+        if (storedVersion < 20) {
+            SharedPreferences.Editor e = prefs.edit();
+            e.remove("sens").remove("zone0").remove("zone1").remove("cdMin").remove("cdMax").remove("useDefault");
+            e.putInt("ver", 20);
+            e.apply();
+        }
+
         licenseLayout = findViewById(R.id.licenseLayout);
         // licenseLayout is root LinearLayout in activity_main (which we reuse)
         keyInput = findViewById(R.id.keyInput);
@@ -752,17 +763,19 @@ public class MainActivity extends AppCompatActivity {
 
     void saveSettings() {
         SharedPreferences.Editor e = prefs.edit();
-        try { e.putString("sens", sensInput.getText().toString().trim());
-              e.putString("zone0", zoneY0Input.getText().toString().trim());
-              e.putString("zone1", zoneY1Input.getText().toString().trim());
-              e.putString("cdMin", cdMinInput.getText().toString().trim());
-              e.putString("cdMax", cdMaxInput.getText().toString().trim()); } catch (Exception ignored) {}
+        try {
+            // sensitivity intentionally NOT persisted: it must always start at the default
+            // and only reflect what the user typed right before pressing "Старт"
+            e.putString("zone0", zoneY0Input.getText().toString().trim());
+            e.putString("zone1", zoneY1Input.getText().toString().trim());
+            e.putString("cdMin", cdMinInput.getText().toString().trim());
+            e.putString("cdMax", cdMaxInput.getText().toString().trim()); } catch (Exception ignored) {}
         e.putBoolean("useDefault", useDefaultSearch);
         e.apply();
     }
 
     void loadSettings() {
-        sensInput.setText(prefs.getString("sens", "50"));
+        // sensitivity field keeps its default "50"; only zone/CD/default are restored
         zoneY0Input.setText(prefs.getString("zone0", "30"));
         zoneY1Input.setText(prefs.getString("zone1", "95"));
         cdMinInput.setText(prefs.getString("cdMin", "1.4"));
