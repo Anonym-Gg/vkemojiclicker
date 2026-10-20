@@ -45,10 +45,10 @@ public class TemplateMatcher {
         float bestScore = -2f;
         int bestX = 0, bestY = 0, bestNw = 0, bestNh = 0;
 
-        // PC parity: scales 0.35..1.5 step 0.07
-        int steps = (int)((1.5f - 0.35f) / 0.07f) + 1;
-        for (int k = 0; k < steps; k++) {
-            float sc = 0.35f + 0.07f * k;
+        // PC parity but fewer scales for speed on small templates:
+        // 0.55, 0.7, 0.85, 1.0, 1.2, 1.45
+        float[] scales = {0.55f, 0.7f, 0.85f, 1.0f, 1.2f, 1.45f};
+        for (float sc : scales) {
             int nw = Math.max(4, (int)(tw * sc));
             int nh = Math.max(4, (int)(th * sc));
             if (nw >= sw || nh >= sh) continue;
@@ -64,26 +64,22 @@ public class TemplateMatcher {
                              + (c & 0xff) * 114 / 1000);
             }
 
-            // template mean
-            float tMean = 0f;
-            for (short v : t) tMean += v;
-            tMean /= t.length;
-
-            int scanStep = 3;
+            // template pixels are pre-scaled luminance, no mean needed (CCOEFF via sums)
+            int scanStep = 2;
             float bestAt = -2f;
             int bsx = 0, bsy = 0;
             for (int y = 0; y + nh <= sh; y += scanStep) {
                 for (int x = 0; x + nw <= sw; x += scanStep) {
-                    float sc2 = corrAt(lum, sw, t, nw, nh, tMean, x, y);
+                    float sc2 = corrAt(lum, sw, t, nw, nh, x, y);
                     if (sc2 > bestAt) { bestAt = sc2; bsx = x; bsy = y; }
                 }
             }
             // refine around best with step 1
-            for (int dy = -3; dy <= 3; dy++) {
-                for (int dx = -3; dx <= 3; dx++) {
+            for (int dy = -2; dy <= 2; dy++) {
+                for (int dx = -2; dx <= 2; dx++) {
                     int x = bsx + dx, y = bsy + dy;
                     if (x < 0 || y < 0 || x + nw > sw || y + nh > sh) continue;
-                    float sc2 = corrAt(lum, sw, t, nw, nh, tMean, x, y);
+                    float sc2 = corrAt(lum, sw, t, nw, nh, x, y);
                     if (sc2 > bestAt) { bestAt = sc2; bsx = x; bsy = y; }
                 }
             }
@@ -101,7 +97,7 @@ public class TemplateMatcher {
     }
 
     // normalized cross-correlation of template (offset ox,oy in screen) vs screen luminance
-    static float corrAt(short[] lum, int sw, short[] t, int nw, int nh, float tMean, int ox, int oy) {
+    static float corrAt(short[] lum, int sw, short[] t, int nw, int nh, int ox, int oy) {
         long sumT = 0, sumS = 0, sumTS = 0, sumTT = 0, sumSS = 0;
         for (int j = 0; j < nh; j++) {
             int sRow = (oy + j) * sw + ox;

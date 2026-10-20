@@ -353,9 +353,11 @@ public class MainActivity extends AppCompatActivity {
                     handler.post(() -> Toast.makeText(this, "Не удалось сделать скриншот", Toast.LENGTH_SHORT).show());
                     return;
                 }
-                boolean found = findMatch(shot, priorityTemplate, "приоритет", getSensitivity(), true);
+                Bitmap roi = cropZone(shot);
+                int offset = roi != null ? zoneOffsets[0] : 0;
+                boolean found = findMatch(roi, priorityTemplate, "приоритет", getSensitivity(), true, offset);
                 if (!found && normalTemplate != null) {
-                    found = findMatch(shot, normalTemplate, "не приоритет", getSensitivity(), true);
+                    found = findMatch(roi, normalTemplate, "не приоритет", getSensitivity(), true, offset);
                 }
                 if (!found) {
                     handler.post(() -> Toast.makeText(this, "Ничего не найдено", Toast.LENGTH_SHORT).show());
@@ -373,10 +375,12 @@ public class MainActivity extends AppCompatActivity {
                 final Bitmap[] holder = new Bitmap[1];
                 holder[0] = captureUiThread();
                 if (holder[0] != null) {
+                    Bitmap roi = cropZone(holder[0]);
+                    int offset = roi != null ? zoneOffsets[0] : 0;
                     final float minScore = getSensitivity();
-                    boolean found = findMatch(holder[0], priorityTemplate, "приоритет", minScore, false);
+                    boolean found = findMatch(roi, priorityTemplate, "приоритет", minScore, false, offset);
                     if (!found && normalTemplate != null) {
-                        found = findMatch(holder[0], normalTemplate, "не приоритет", minScore, false);
+                        found = findMatch(roi, normalTemplate, "не приоритет", minScore, false, offset);
                     }
                 }
                 // always wait CD between iterations
@@ -447,9 +451,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     // returns true if found (then caller taps) / false if not found or too weak
-    boolean findMatch(final Bitmap shot, final Bitmap tpl, final String label, float minScore, final boolean verbose) {
+    // roi is the zone strip (already cropped), zoneOffset is its top offset in the full screenshot
+    boolean findMatch(final Bitmap roi, final Bitmap tpl, final String label, float minScore, final boolean verbose, int zoneOffset) {
         if (tpl == null) return false;
-        Bitmap roi = cropZone(shot);
         if (roi == null) return false;
         TemplateMatcher.Match m = TemplateMatcher.findBest(roi, tpl);
         if (m == null) return false;
@@ -461,7 +465,7 @@ public class MainActivity extends AppCompatActivity {
             return false;
         }
         // convert back to full screenshot coords, tap slightly below center (PC parity)
-        final int absY = m.y + zoneOffsets[0];
+        final int absY = m.y + zoneOffset;
         final int tapY = absY + (int)(m.templateH * 0.55f);
         handler.post(() -> {
             cursorOverlay.showAt(m.x, tapY);
