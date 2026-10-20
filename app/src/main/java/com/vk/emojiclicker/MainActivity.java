@@ -55,6 +55,8 @@ public class MainActivity extends AppCompatActivity {
     boolean useDefaultSearch = false; // when true: search built-in ⚔️ (priority) and 🎁 (normal)
     boolean panelCollapsed = true;    // floating bubble mode (panel hidden)
     TextView bubble;                  // floating circle button to show/collapse the panel
+    ScreenCapture capture;            // screen capture for real VK app (MediaProjection)
+    static final int PROJECTION_REQUEST = 2001;
 
     // Built-in default templates (rendered), used when "Поиск по умолчанию" is on
     Bitmap defaultPriorityTemplate = null; // ⚔️
@@ -205,6 +207,20 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == PROJECTION_REQUEST) {
+            if (resultCode == RESULT_OK && data != null) {
+                if (capture == null) capture = new ScreenCapture();
+                boolean ok = capture.start(this, resultCode, data);
+                if (ok) {
+                    Toast.makeText(this, "Захват экрана ВКЛЮЧЁН", Toast.LENGTH_LONG).show();
+                } else {
+                    Toast.makeText(this, "Не удалось включить захват экрана", Toast.LENGTH_LONG).show();
+                }
+            } else {
+                Toast.makeText(this, "Захват экрана отменён", Toast.LENGTH_SHORT).show();
+            }
+            return;
+        }
         if (resultCode != RESULT_OK || data == null || data.getData() == null) return;
         Uri uri = data.getData();
         Bitmap bmp = null;
@@ -392,6 +408,13 @@ public class MainActivity extends AppCompatActivity {
         toolbar.addView(settingsPanel);
         toolbar.addView(btns);
 
+        // bottom row: enable screen capture (works with the real VK app)
+        Button capBtn = new Button(this);
+        capBtn.setText("Захват экрана (для VK-приложения)");
+        capBtn.setTextSize(13);
+        capBtn.setOnClickListener(v -> requestScreenCapture());
+        toolbar.addView(capBtn);
+
         // floating bubble (collapsed mode) — draggable, tap to expand
         bubble = new TextView(this);
         bubble.setText("⚔️");
@@ -478,6 +501,17 @@ public class MainActivity extends AppCompatActivity {
                 return false;
             }
         });
+    }
+
+    void requestScreenCapture() {
+        try {
+            android.media.projection.MediaProjectionManager mpm =
+                    (android.media.projection.MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
+            Intent i = mpm.createScreenCaptureIntent();
+            startActivityForResult(i, PROJECTION_REQUEST);
+        } catch (Exception e) {
+            Toast.makeText(this, "Захват недоступен: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
     }
 
     void startAction() {
@@ -728,14 +762,18 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    Bitmap captureWebView() {
+Bitmap captureWebView() {
+        // Prefer real screen capture (works with the real VK app) when available
+        if (capture != null && capture.isRunning()) {
+            try {
+                Bitmap b = capture.grab();
+                if (b != null) return b;
+            } catch (Exception ignored) {}
+        }
         try {
             int w = webView.getWidth();
             int h = webView.getHeight();
             if (w <= 0 || h <= 0) return null;
-            // WebView renders via GPU; to capture pixels with draw() we set a
-            // persistent software layer (enabled once in buildMainUI). draw() then
-            // produces real pixels.
             Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
             Canvas c = new Canvas(bmp);
             webView.draw(c);
@@ -744,17 +782,25 @@ public class MainActivity extends AppCompatActivity {
             return null;
         }
     }
+    }
 
     void tapAt(int x, int y) {
-        // clamp inside the WebView so the tap always lands
-        int w = webView.getWidth();
-        int h = webView.getHeight();
+        // clamp inside the screen bounds
+        int w = getResources().getDisplayMetrics().widthPixels;
+        int h = getResources().getDisplayMetrics().heightPixels;
         if (x < 0) x = 0;
         if (y < 0) y = 0;
         if (x >= w) x = w - 1;
         if (y >= h) y = h - 1;
-        // dispatch a tap in app coordinates via TouchUtils
-        TouchUtils.tap(this, webView, x, y);
+        VkClickerService svc = VkClickerService.getInstance();
+        if (svc != null) {
+            svc.tap(x, y); // real tap anywhere on screen (including the VK app)
+            return;
+        }
+        // fallback: tap inside our own WebView
+        if (webView != null) {
+            TouchUtils.tap(this, webView, Math.min(x, webView.getWidth()-1), Math.min(y, webView.getHeight()-1));
+        }
     }
 
     int dp(int v) {
@@ -787,6 +833,15 @@ public class MainActivity extends AppCompatActivity {
     protected void onPause() {
         super.onPause();
         if (sensInput != null) saveSettings();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (capture != null) {
+            capture.stop();
+            capture = null;
+        }
     }
 
     @Override

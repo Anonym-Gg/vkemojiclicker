@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">VK Emoji Pro</string>
+    <string name="accessibility_desc">Используется для эмуляции нажатий по экрану (автокликер эмодзи). Сервис не собирает и не передаёт ваши данные.</string>
 </resources>
