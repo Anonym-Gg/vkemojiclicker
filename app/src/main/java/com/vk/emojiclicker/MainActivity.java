@@ -3,6 +3,7 @@ package com.vk.emojiclicker;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.net.Uri;
@@ -272,24 +273,31 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "Сначала прикрепи фото эмодзи", Toast.LENGTH_LONG).show();
             return;
         }
-        new Thread(() -> {
-            Bitmap shot = captureWebView();
-            if (shot == null) {
-                handler.post(() -> Toast.makeText(this, "Не удалось сделать скриншот", Toast.LENGTH_SHORT).show());
-                return;
-            }
-            // priority first, then normal
-            if (tryFindAndTap(shot, priorityTemplate, "приоритет")) return;
-            if (tryFindAndTap(shot, normalTemplate, "не приоритет")) return;
-            handler.post(() -> Toast.makeText(this, "Ничего не найдено", Toast.LENGTH_SHORT).show());
-        }).start();
+        handler.post(() -> {
+            final Bitmap shot = captureWebView();
+            new Thread(() -> {
+                if (shot == null) {
+                    handler.post(() -> Toast.makeText(this, "Не удалось сделать скриншот", Toast.LENGTH_SHORT).show());
+                    return;
+                }
+                // priority first, then normal
+                if (tryFindAndTap(shot, priorityTemplate, "приоритет")) return;
+                if (tryFindAndTap(shot, normalTemplate, "не приоритет")) return;
+                handler.post(() -> Toast.makeText(this, "Ничего не найдено", Toast.LENGTH_SHORT).show());
+            }).start();
+        });
     }
 
     // returns true if found & tapped; must be called on background thread
     boolean tryFindAndTap(final Bitmap shot, final Bitmap tpl, final String label) {
         if (tpl == null) return false;
-        TemplateMatcher.Match m = TemplateMatcher.find(shot, tpl, 0.6);
+        TemplateMatcher.Match m = TemplateMatcher.findBest(shot, tpl);
         if (m == null) return false;
+        if (m.score < 0.6f) {
+            final float sc = m.score;
+            handler.post(() -> Toast.makeText(this, label + ": совпадение " + Math.round(sc*100) + "% (не кликнул)", Toast.LENGTH_SHORT).show());
+            return false;
+        }
         handler.post(() -> {
             cursorOverlay.showAt(m.x, m.y);
             tapAt(m.x, m.y);
@@ -300,22 +308,24 @@ public class MainActivity extends AppCompatActivity {
 
     void runSearchLoop() {
         if (!autoLoop) return;
-        new Thread(() -> {
-            Bitmap shot = captureWebView();
-            if (shot != null) {
-                // priority first
-                if (tryFindAndTap(shot, priorityTemplate, "приоритет")) {
-                    handler.postDelayed(this::runSearchLoop, 1200);
-                    return;
+        handler.post(() -> {
+            final Bitmap shot = captureWebView();
+            new Thread(() -> {
+                if (shot != null) {
+                    // priority first
+                    if (tryFindAndTap(shot, priorityTemplate, "приоритет")) {
+                        handler.postDelayed(this::runSearchLoop, 1200);
+                        return;
+                    }
+                    // then normal
+                    if (tryFindAndTap(shot, normalTemplate, "не приоритет")) {
+                        handler.postDelayed(this::runSearchLoop, 1200);
+                        return;
+                    }
                 }
-                // then normal
-                if (tryFindAndTap(shot, normalTemplate, "не приоритет")) {
-                    handler.postDelayed(this::runSearchLoop, 1200);
-                    return;
-                }
-            }
-            handler.postDelayed(this::runSearchLoop, 1200);
-        }).start();
+                handler.postDelayed(this::runSearchLoop, 1200);
+            }).start();
+        });
     }
 
     Bitmap trim(Bitmap bmp) {
@@ -344,9 +354,15 @@ public class MainActivity extends AppCompatActivity {
 
     Bitmap captureWebView() {
         try {
-            webView.setDrawingCacheEnabled(true);
-            Bitmap b = webView.getDrawingCache();
-            return b != null ? Bitmap.createBitmap(b) : null;
+            // MUST be called on the UI thread. getDrawingCache() is unreliable
+            // for hardware-accelerated WebView, so draw into a fresh bitmap instead.
+            int w = webView.getWidth();
+            int h = webView.getHeight();
+            if (w <= 0 || h <= 0) return null;
+            Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+            Canvas c = new Canvas(bmp);
+            webView.draw(c);
+            return bmp;
         } catch (Exception e) {
             return null;
         }

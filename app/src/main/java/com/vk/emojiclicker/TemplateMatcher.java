@@ -21,6 +21,13 @@ public class TemplateMatcher {
 
     /** Находит лучший центр шаблона на кадре. Returns null если совпадение ниже threshold. */
     public static Match find(Bitmap screen, Bitmap template, double threshold) {
+        Match m = findBest(screen, template);
+        if (m == null || m.score < threshold) return null;
+        return m;
+    }
+
+    /** Всегда возвращает лучшее совпадение (даже ниже порога) или null, если шаблон больше экрана. */
+    public static Match findBest(Bitmap screen, Bitmap template) {
         int sw = screen.getWidth(), sh = screen.getHeight();
         int tw = template.getWidth(), th = template.getHeight();
         if (tw >= sw || th >= sh) return null;
@@ -70,7 +77,7 @@ public class TemplateMatcher {
                 }
             }
         }
-        if (bestScore < threshold) return null;
+        if (bestScore < 0f) return null;
         return new Match(bestX, bestY, bestScore);
     }
 }
