@@ -12,6 +12,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.provider.Settings;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -55,6 +56,7 @@ public class MainActivity extends AppCompatActivity {
     boolean useDefaultSearch = false; // when true: search built-in ⚔️ (priority) and 🎁 (normal)
     boolean panelCollapsed = true;    // floating bubble mode (panel hidden)
     TextView bubble;                  // floating circle button to show/collapse the panel
+    OverlayBubble overlay;            // floating control over ALL apps (real VK)
     static final int PROJECTION_REQUEST = 2001;
 
     // Built-in default templates (rendered), used when "Поиск по умолчанию" is on
@@ -420,6 +422,13 @@ public class MainActivity extends AppCompatActivity {
         capBtn.setOnClickListener(v -> requestScreenCapture());
         toolbar.addView(capBtn);
 
+        // overlay button: floating control visible over ANY app
+        Button overlayBtn = new Button(this);
+        overlayBtn.setText("Показать поверх всего (⚔️ на экране VK)");
+        overlayBtn.setTextSize(13);
+        overlayBtn.setOnClickListener(v -> toggleOverlay());
+        toolbar.addView(overlayBtn);
+
         // floating bubble (collapsed mode) — draggable, tap to expand
         bubble = new TextView(this);
         bubble.setText("⚔️");
@@ -506,6 +515,33 @@ public class MainActivity extends AppCompatActivity {
                 return false;
             }
         });
+    }
+
+    void toggleOverlay() {
+        if (overlay != null) {
+            overlay.hide();
+            overlay = null;
+            Toast.makeText(this, "Оверлей скрыт", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        // need SYSTEM_ALERT_WINDOW permission
+        if (!Settings.canDrawOverlays(this)) {
+            try {
+                Toast.makeText(this, "Разреши «поверх других приложений» для VK Emoji Pro", Toast.LENGTH_LONG).show();
+                Intent i = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        Uri.parse("package:" + getPackageName()));
+                startActivity(i);
+            } catch (Exception e) {
+                Toast.makeText(this, "Не удалось открыть настройки: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            }
+            return;
+        }
+        overlay = new OverlayBubble(this,
+                this::startAction,     // ВКЛ — кликер (с тем же стартом что и кнопка)
+                () -> { autoLoop = false; Toast.makeText(this, "Стоп", Toast.LENGTH_SHORT).show(); },
+                () -> { /* открыть настройки в приложении: развернуть панель */ });
+        overlay.show();
+        Toast.makeText(this, "Пузырь ⚔️ теперь поверх всех приложений", Toast.LENGTH_LONG).show();
     }
 
     void requestScreenCapture() {
@@ -842,6 +878,10 @@ Bitmap captureWebView() {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        if (overlay != null) {
+            try { overlay.hide(); } catch (Exception ignored) {}
+            overlay = null;
+        }
         try {
             stopService(new Intent(this, CaptureService.class));
         } catch (Exception ignored) {}
