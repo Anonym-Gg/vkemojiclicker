@@ -4,9 +4,9 @@ import android.graphics.Bitmap;
 
 /**
  * Шаблонный матчинг как в ПК-версии: нормированная кросс-корреляция
- * (аналог cv2.TM_CCOEFF_NORMED) по яркости, на нескольких масштабах.
- * Инвариантен к яркости/контрасту — находит ТОТ ЖЕ эмодзи, который прикреплён,
- * даже если на экране он чуть другого оттенка или в тени.
+ * (аналог cv2.TM_CCOEFF_NORMED) по яркости с учётом маски прозрачности шаблона.
+ * Прозрачные пиксели шаблона исключаются из расчёта — шаблон с прозрачным фоном
+ * находит эмодзи на любом фоне (светлом/тёмном/цветном).
  */
 public class TemplateMatcher {
 
@@ -31,7 +31,7 @@ public class TemplateMatcher {
         int tw = template.getWidth(), th = template.getHeight();
         if (tw >= sw || th >= sh) return null;
 
-        // grayscale luminance of screen
+        // screen luminance
         int[] s = new int[sw * sh];
         screen.getPixels(s, 0, sw, 0, 0, sw, sh);
         short[] lum = new short[sw * sh];
@@ -45,9 +45,8 @@ public class TemplateMatcher {
         float bestScore = -2f;
         int bestX = 0, bestY = 0, bestNw = 0, bestNh = 0;
 
-        // PC parity but fewer scales for speed on small templates:
-        // 0.55, 0.7, 0.85, 1.0, 1.2, 1.45
-        float[] scales = {0.55f, 0.7f, 0.85f, 1.0f, 1.2f, 1.45f};
+        // scales cover smaller & bigger variants of the emoji in the game grid
+        float[] scales = {0.45f, 0.6f, 0.8f, 1.0f, 1.25f, 1.5f};
         for (float sc : scales) {
             int nw = Math.max(4, (int)(tw * sc));
             int nh = Math.max(4, (int)(th * sc));
@@ -56,30 +55,39 @@ public class TemplateMatcher {
             int[] tp = new int[nw * nh];
             r.getPixels(tp, 0, nw, 0, 0, nw, nh);
             r.recycle();
+
+            // luminance + alpha mask of the scaled template
             short[] t = new short[nw * nh];
+            boolean[] mask = new boolean[nw * nh];
+            int maskCount = 0;
             for (int i = 0; i < tp.length; i++) {
                 int c = tp[i];
-                t[i] = (short)(((c >> 16) & 0xff) * 299 / 1000
-                             + ((c >> 8) & 0xff) * 587 / 1000
-                             + (c & 0xff) * 114 / 1000);
+                int a = (c >>> 24) & 0xff;
+                boolean usable = a > 40; // ignore nearly transparent pixels
+                mask[i] = usable;
+                if (usable) {
+                    t[i] = (short)(((c >> 16) & 0xff) * 299 / 1000
+                                 + ((c >> 8) & 0xff) * 587 / 1000
+                                 + (c & 0xff) * 114 / 1000);
+                    maskCount++;
+                }
             }
+            if (maskCount < 8) continue; // degenerate template
 
-            // template pixels are pre-scaled luminance, no mean needed (CCOEFF via sums)
             int scanStep = 2;
             float bestAt = -2f;
             int bsx = 0, bsy = 0;
             for (int y = 0; y + nh <= sh; y += scanStep) {
                 for (int x = 0; x + nw <= sw; x += scanStep) {
-                    float sc2 = corrAt(lum, sw, t, nw, nh, x, y);
+                    float sc2 = corrMasked(lum, sw, t, mask, nw, nh, maskCount, x, y);
                     if (sc2 > bestAt) { bestAt = sc2; bsx = x; bsy = y; }
                 }
             }
-            // refine around best with step 1
             for (int dy = -2; dy <= 2; dy++) {
                 for (int dx = -2; dx <= 2; dx++) {
                     int x = bsx + dx, y = bsy + dy;
                     if (x < 0 || y < 0 || x + nw > sw || y + nh > sh) continue;
-                    float sc2 = corrAt(lum, sw, t, nw, nh, x, y);
+                    float sc2 = corrMasked(lum, sw, t, mask, nw, nh, maskCount, x, y);
                     if (sc2 > bestAt) { bestAt = sc2; bsx = x; bsy = y; }
                 }
             }
@@ -96,13 +104,14 @@ public class TemplateMatcher {
         return new Match(bestX, bestY, bestScore, bestNw, bestNh);
     }
 
-    // normalized cross-correlation of template (offset ox,oy in screen) vs screen luminance
-    static float corrAt(short[] lum, int sw, short[] t, int nw, int nh, int ox, int oy) {
+    // masked normalized cross-correlation (only non-transparent template pixels)
+    static float corrMasked(short[] lum, int sw, short[] t, boolean[] mask, int nw, int nh, int maskCount, int ox, int oy) {
         long sumT = 0, sumS = 0, sumTS = 0, sumTT = 0, sumSS = 0;
         for (int j = 0; j < nh; j++) {
             int sRow = (oy + j) * sw + ox;
             int tRow = j * nw;
             for (int i = 0; i < nw; i++) {
+                if (!mask[tRow + i]) continue;
                 int sv = lum[sRow + i];
                 int tv = t[tRow + i];
                 sumT += tv;
@@ -112,7 +121,7 @@ public class TemplateMatcher {
                 sumSS += (long) sv * sv;
             }
         }
-        int n = nw * nh;
+        int n = maskCount;
         float v1 = sumTS - (float)sumT * sumS / n;
         float d1 = (float)Math.sqrt(Math.max(0L, (long)sumTT - (float)sumT * sumT / n));
         float d2 = (float)Math.sqrt(Math.max(0L, (long)sumSS - (float)sumS * sumS / n));

@@ -641,7 +641,7 @@ public class MainActivity extends AppCompatActivity {
         return Bitmap.createBitmap(bmp, x0, y0, x1-x0, y1-y0);
     }
 
-    // render an emoji char into a tight white-background bitmap (used for default search)
+    // render an emoji char into a transparent-background bitmap (used for default search)
     Bitmap renderEmoji(String emoji) {
         try {
             TextView tv = new TextView(this);
@@ -654,7 +654,7 @@ public class MainActivity extends AppCompatActivity {
             if (w <= 0 || h <= 0) return null;
             Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
             Canvas c = new Canvas(bmp);
-            c.drawColor(Color.WHITE);
+            // transparent background so the template matches emoji on any background
             tv.layout(0, 0, w, h);
             tv.draw(c);
             return trim(bmp);
