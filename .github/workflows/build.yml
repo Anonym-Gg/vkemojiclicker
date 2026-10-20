@@ -20,18 +20,12 @@ jobs:
 
       - name: Download Gradle 8.4
         run: |
-          curl -fsSL -o gradle.zip https://services.gradle.org/distributions/gradle-8.4-bin.zip
-          unzip -q gradle.zip
-          rm gradle.zip
-
-      - name: Generate wrapper
-        run: gradle-8.4/bin/gradle wrapper --gradle-version 8.4
-
-      - name: Grant execute permission
-        run: chmod +x gradlew
+          curl -fsSL -o /tmp/gradle.zip https://services.gradle.org/distributions/gradle-8.4-bin.zip
+          unzip -q /tmp/gradle.zip -d /tmp
+          ls /tmp/gradle-8.4/bin
 
       - name: Build debug APK
-        run: ./gradlew assembleDebug --no-daemon
+        run: /tmp/gradle-8.4/bin/gradle assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
