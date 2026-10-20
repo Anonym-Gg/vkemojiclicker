@@ -9,6 +9,7 @@ import android.graphics.Typeface;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.WebSettings;
@@ -46,14 +47,20 @@ public class MainActivity extends AppCompatActivity {
     ScrollView emojiPicker;
     Handler handler = new Handler(Looper.getMainLooper());
 
-    String[] emojis = {
+    String[] priorityEmojis = {
             "⚔️","😀","😂","😍","😘","😎","🤔","😅","😭","🤣",
-            "😉","👍","👎","🙏","👏","💪","🤝","❤️","💕","💯",
-            "🔥","⭐","🎉","🥰","😊","🤷","🙄","💀","👀","😱","🥺"
+            "😉","👍","👎","🙏","👏","💪","🤝","❤️","💕","💯"
+    };
+
+    String[] normalEmojis = {
+            "🔥","⭐","🎉","🥰","😊","🤷","🙄","💀","👀","😱","🥺",
+            "✅","❌","💋","🤡","👌","✌️","🤟","🖤","💔","😴","😡"
     };
 
     String currentEmoji = "⚔️";
     boolean autoLoop = false;
+    String[] autoList = priorityEmojis;
+    int autoIndex = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -93,6 +100,46 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
 
+    void addSectionHeader(LinearLayout parent, String text) {
+        TextView header = new TextView(this);
+        header.setText(text);
+        header.setTextSize(12);
+        header.setTypeface(Typeface.DEFAULT_BOLD);
+        header.setTextColor(0xFF9E9E9E);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(28));
+        lp.topMargin = dp(4);
+        header.setLayoutParams(lp);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        header.setPadding(dp(4), 0, 0, 0);
+        parent.addView(header);
+    }
+
+    void addEmojiGridRow(LinearLayout parent, String[] list) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        for (String emoji : list) {
+            Button b = new Button(this);
+            b.setText(emoji);
+            b.setTextSize(20);
+            b.setMinHeight(dp(48));
+            b.setMinWidth(dp(48));
+            b.setPadding(0, 0, 0, 0);
+            b.setBackgroundColor(0xFF3A3A3A);
+            b.setTextColor(Color.WHITE);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                    dp(48), dp(48));
+            b.setLayoutParams(lp);
+            b.setOnClickListener(view -> {
+                currentEmoji = ((Button) view).getText().toString();
+                if (autoLoop) runSearchLoop();
+                else runSearchOnce();
+            });
+            row.addView(b);
+        }
+        parent.addView(row);
+    }
+
     void buildMainUI() {
         // replace license content with main UI
         licenseLayout.removeAllViews();
@@ -106,35 +153,18 @@ public class MainActivity extends AppCompatActivity {
         toolbar.setPadding(dp(8), dp(4), dp(8), dp(4));
         toolbar.setBackgroundColor(0xFF2B2B2B);
 
-        // emoji grid (2 rows of buttons)
+        // emoji picker: priority section + normal section
         emojiPicker = new ScrollView(this);
         emojiPicker.setLayoutParams(new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(110)));
-        // grid inside
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(180)));
         LinearLayout gridWrap = new LinearLayout(this);
         gridWrap.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout row = null;
-        for (int i = 0; i < emojis.length; i++) {
-            if (i % 11 == 0) {
-                row = new LinearLayout(this);
-                row.setOrientation(LinearLayout.HORIZONTAL);
-                gridWrap.addView(row);
-            }
-            Button b = new Button(this);
-            b.setText(emojis[i]);
-            b.setTextSize(16);
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                    dp(0), dp(52), 1f);
-            b.setLayoutParams(lp);
-            b.setBackgroundColor(0xFF3A3A3A);
-            b.setTextColor(Color.WHITE);
-            b.setOnClickListener(view -> {
-                currentEmoji = ((Button) view).getText().toString();
-                if (autoLoop) runSearchLoop();
-                else runSearchOnce();
-            });
-            row.addView(b);
-        }
+
+        addSectionHeader(gridWrap, "ПРИОРИТЕТ");
+        addEmojiGridRow(gridWrap, priorityEmojis);
+        addSectionHeader(gridWrap, "НЕ ПРИОРИТЕТ");
+        addEmojiGridRow(gridWrap, normalEmojis);
+
         emojiPicker.addView(gridWrap);
 
         // buttons: Search once / Auto / Stop
@@ -146,12 +176,25 @@ public class MainActivity extends AppCompatActivity {
         Button autoBtn = new Button(this);
         autoBtn.setText("Авто");
         autoBtn.setOnClickListener(v -> {
-            autoLoop = !autoLoop;
-            if (autoLoop) runSearchLoop();
+            if (!autoLoop) {
+                // start: iterate priority first, then normal
+                autoLoop = true;
+                autoList = priorityEmojis;
+                autoIndex = 0;
+                currentEmoji = autoList[0];
+                Toast.makeText(this, "Авто: приоритетные → обычные", Toast.LENGTH_SHORT).show();
+                runSearchLoop();
+            } else {
+                autoLoop = false;
+                Toast.makeText(this, "Авто остановлен", Toast.LENGTH_SHORT).show();
+            }
         });
         Button stopBtn = new Button(this);
         stopBtn.setText("Стоп");
-        stopBtn.setOnClickListener(v -> autoLoop = false);
+        stopBtn.setOnClickListener(v -> {
+            autoLoop = false;
+            Toast.makeText(this, "Авто остановлен", Toast.LENGTH_SHORT).show();
+        });
         LinearLayout.LayoutParams lpB = new LinearLayout.LayoutParams(
                 dp(0), ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         searchBtn.setLayoutParams(lpB); autoBtn.setLayoutParams(lpB); stopBtn.setLayoutParams(lpB);
@@ -207,19 +250,36 @@ public class MainActivity extends AppCompatActivity {
 
     void runSearchLoop() {
         if (!autoLoop) return;
+        final String emoji = autoList[autoIndex];
+        currentEmoji = emoji;
         new Thread(() -> {
-            Bitmap tpl = renderEmoji(currentEmoji);
+            Bitmap tpl = renderEmoji(emoji);
             Bitmap shot = captureWebView();
-            if (tpl == null || shot == null) return;
-            TemplateMatcher.Match m = TemplateMatcher.find(shot, tpl, 0.6);
-            int delay = 1500;
-            if (m != null) {
-                handler.post(() -> {
-                    cursorOverlay.showAt(m.x, m.y);
-                    tapAt(m.x, m.y);
-                });
+            if (tpl != null && shot != null) {
+                TemplateMatcher.Match m = TemplateMatcher.find(shot, tpl, 0.6);
+                if (m != null) {
+                    final TemplateMatcher.Match fm = m;
+                    handler.post(() -> {
+                        cursorOverlay.showAt(fm.x, fm.y);
+                        tapAt(fm.x, fm.y);
+                        Toast.makeText(this, "Кликнул: " + emoji, Toast.LENGTH_SHORT).show();
+                    });
+                }
             }
-            handler.postDelayed(this::runSearchLoop, delay);
+            // advance to next emoji; when priority list is done, switch to normal; wrap around
+            handler.postDelayed(() -> {
+                autoIndex++;
+                if (autoIndex >= autoList.length) {
+                    if (autoList == priorityEmojis) {
+                        autoList = normalEmojis;
+                        autoIndex = 0;
+                    } else {
+                        autoList = priorityEmojis;
+                        autoIndex = 0;
+                    }
+                }
+                runSearchLoop();
+            }, 1200);
         }).start();
     }
 
