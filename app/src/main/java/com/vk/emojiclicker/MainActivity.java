@@ -376,6 +376,8 @@ public class MainActivity extends AppCompatActivity {
         ws.setJavaScriptEnabled(true);
         ws.setDomStorageEnabled(true);
         ws.setUserAgentString(ws.getUserAgentString().replace("; wv", ""));
+        // persistent software layer so captureWebView() (draw()) gets real pixels
+        webView.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
         webView.setWebViewClient(new WebViewClient());
         webView.loadUrl(VK_URL);
 
@@ -451,6 +453,14 @@ public class MainActivity extends AppCompatActivity {
                     handler.post(() -> Toast.makeText(this, "Не удалось сделать скриншот", Toast.LENGTH_SHORT).show());
                     return;
                 }
+                // DEBUG: save the captured frame once so we can see what the app sees
+                try {
+                    java.io.File f = new java.io.File(getExternalFilesDir(null), "last_shot.png");
+                    java.io.FileOutputStream fos = new java.io.FileOutputStream(f);
+                    shot.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, fos);
+                    fos.close();
+                    handler.post(() -> Toast.makeText(this, "Скриншот сохранён: " + f.getAbsolutePath(), Toast.LENGTH_LONG).show());
+                } catch (Exception ignored) {}
                 if (isEmptyFrame(shot)) {
                     handler.post(() -> Toast.makeText(this, "Скриншот пустой — вкладка не видна или ещё грузится", Toast.LENGTH_LONG).show());
                     return;
@@ -668,23 +678,19 @@ public class MainActivity extends AppCompatActivity {
     }
 
     Bitmap captureWebView() {
-        int prevLayer = 0;
         try {
             int w = webView.getWidth();
             int h = webView.getHeight();
             if (w <= 0 || h <= 0) return null;
-            // Hardware-accelerated WebView often draws nothing into a CPU canvas.
-            // Force a software layer while capturing so pixels are real.
-            prevLayer = webView.getLayerType();
-            webView.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+            // WebView renders via GPU; to capture pixels with draw() we set a
+            // persistent software layer (enabled once in buildMainUI). draw() then
+            // produces real pixels.
             Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
             Canvas c = new Canvas(bmp);
             webView.draw(c);
             return bmp;
         } catch (Exception e) {
             return null;
-        } finally {
-            try { webView.setLayerType(prevLayer, null); } catch (Exception ignored) {}
         }
     }
 
