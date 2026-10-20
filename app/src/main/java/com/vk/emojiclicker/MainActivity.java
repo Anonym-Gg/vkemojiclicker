@@ -17,6 +17,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebViewClient;
 import android.webkit.WebView;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
@@ -278,34 +279,30 @@ public class MainActivity extends AppCompatActivity {
         LinearLayout btns = new LinearLayout(this);
         btns.setOrientation(LinearLayout.HORIZONTAL);
         Button searchBtn = new Button(this);
-        searchBtn.setText("Найти и кликнуть");
-        searchBtn.setOnClickListener(v -> runSearchOnce());
-        Button autoBtn = new Button(this);
-        autoBtn.setText("Авто");
-        autoBtn.setOnClickListener(v -> {
-            if (!autoLoop) {
-                if (priorityTemplate == null && normalTemplate == null) {
-                    Toast.makeText(this, "Сначала прикрепи фото эмодзи", Toast.LENGTH_LONG).show();
-                    return;
-                }
-                autoLoop = true;
-                Toast.makeText(this, "Авто: приоритет → не приоритет", Toast.LENGTH_SHORT).show();
-                runSearchLoop();
-            } else {
-                autoLoop = false;
-                Toast.makeText(this, "Авто остановлен", Toast.LENGTH_SHORT).show();
+        searchBtn.setText("Старт");
+        searchBtn.setOnClickListener(v -> startAction());
+        CheckBox autoCb = new CheckBox(this);
+        autoCb.setText("Авто");
+        autoCb.setTextColor(Color.WHITE);
+        autoCb.setTextSize(14);
+        autoCb.setChecked(false);
+        autoCb.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            autoLoop = isChecked;
+            if (isChecked) {
+                Toast.makeText(this, "Авто включён", Toast.LENGTH_SHORT).show();
             }
         });
         Button stopBtn = new Button(this);
         stopBtn.setText("Стоп");
         stopBtn.setOnClickListener(v -> {
             autoLoop = false;
-            Toast.makeText(this, "Авто остановлен", Toast.LENGTH_SHORT).show();
+            autoCb.setChecked(false);
+            Toast.makeText(this, "Остановлен", Toast.LENGTH_SHORT).show();
         });
         LinearLayout.LayoutParams lpB = new LinearLayout.LayoutParams(
                 dp(0), ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        searchBtn.setLayoutParams(lpB); autoBtn.setLayoutParams(lpB); stopBtn.setLayoutParams(lpB);
-        btns.addView(searchBtn); btns.addView(autoBtn); btns.addView(stopBtn);
+        searchBtn.setLayoutParams(lpB); autoCb.setLayoutParams(lpB); stopBtn.setLayoutParams(lpB);
+        btns.addView(searchBtn); btns.addView(autoCb); btns.addView(stopBtn);
 
         toolbar.addView(pickerPanel);
         toolbar.addView(settingsPanel);
@@ -335,11 +332,20 @@ public class MainActivity extends AppCompatActivity {
         licenseLayout.addView(mainFrame);
     }
 
-    void runSearchOnce() {
+    void startAction() {
         if (priorityTemplate == null && normalTemplate == null) {
             Toast.makeText(this, "Сначала прикрепи фото эмодзи", Toast.LENGTH_LONG).show();
             return;
         }
+        if (autoLoop) {
+            Toast.makeText(this, "Авто запущен (КД " + cdMinInput.getText() + "–" + cdMaxInput.getText() + "с)", Toast.LENGTH_SHORT).show();
+            new Thread(this::autoLoopWorker).start();
+        } else {
+            runSearchOnce();
+        }
+    }
+
+    void runSearchOnce() {
         handler.post(() -> {
             final Bitmap shot = captureWebView();
             new Thread(() -> {
@@ -347,17 +353,62 @@ public class MainActivity extends AppCompatActivity {
                     handler.post(() -> Toast.makeText(this, "Не удалось сделать скриншот", Toast.LENGTH_SHORT).show());
                     return;
                 }
-                final float minScore = getSensitivity();
-                // priority first, then normal; verbose toasts in manual mode
-                boolean found = findMatch(shot, priorityTemplate, "приоритет", minScore, true);
+                boolean found = findMatch(shot, priorityTemplate, "приоритет", getSensitivity(), true);
                 if (!found && normalTemplate != null) {
-                    found = findMatch(shot, normalTemplate, "не приоритет", minScore, true);
+                    found = findMatch(shot, normalTemplate, "не приоритет", getSensitivity(), true);
                 }
                 if (!found) {
                     handler.post(() -> Toast.makeText(this, "Ничего не найдено", Toast.LENGTH_SHORT).show());
                 }
             }).start();
         });
+    }
+
+    // auto mode: keeps searching+clicking in a loop while autoLoop is on.
+    // Each iteration always waits the cooldown (CD) before the next scan,
+    // so it never hot-spins or "freezes".
+    void autoLoopWorker() {
+        while (autoLoop) {
+            try {
+                final Bitmap[] holder = new Bitmap[1];
+                holder[0] = captureUiThread();
+                if (holder[0] != null) {
+                    final float minScore = getSensitivity();
+                    boolean found = findMatch(holder[0], priorityTemplate, "приоритет", minScore, false);
+                    if (!found && normalTemplate != null) {
+                        found = findMatch(holder[0], normalTemplate, "не приоритет", minScore, false);
+                    }
+                }
+                // always wait CD between iterations
+                int cd = currentCdDelay();
+                long endMs = System.currentTimeMillis() + cd;
+                while (autoLoop && System.currentTimeMillis() < endMs) {
+                    try { Thread.sleep(50); } catch (InterruptedException ignored) {}
+                }
+            } catch (Exception e) {
+                // keep looping, don't crash
+                try { Thread.sleep(500); } catch (InterruptedException ignored) {}
+            }
+        }
+    }
+
+    // capture on UI thread, returns bitmap or null
+    Bitmap captureUiThread() {
+        try {
+            final Bitmap[] holder = new Bitmap[1];
+            final boolean[] done = new boolean[1];
+            handler.post(() -> {
+                holder[0] = captureWebView();
+                done[0] = true;
+            });
+            long endMs = System.currentTimeMillis() + 2000;
+            while (!done[0] && System.currentTimeMillis() < endMs) {
+                try { Thread.sleep(20); } catch (InterruptedException ignored) {}
+            }
+            return holder[0];
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     float getSensitivity() {
@@ -431,28 +482,6 @@ public class MainActivity extends AppCompatActivity {
         if (hi < lo) hi = lo;
         double d = lo + Math.random() * (hi - lo);
         return (int)(d * 1000);
-    }
-
-    void runSearchLoop() {
-        if (!autoLoop) return;
-        // one shot per iteration: priority first, then normal; if neither - quick retry
-        handler.post(() -> {
-            final Bitmap shot = captureWebView();
-            new Thread(() -> {
-                final float minScore = getSensitivity();
-                boolean verbose = false; // no spam in auto mode
-                boolean found = false;
-                if (shot != null) {
-                    if (findMatch(shot, priorityTemplate, "приоритет", minScore, verbose)) {
-                        found = true;
-                    } else if (findMatch(shot, normalTemplate, "не приоритет", minScore, verbose)) {
-                        found = true;
-                    }
-                }
-                int delay = found ? currentCdDelay() : 500; // fast rescan when nothing found
-                handler.postDelayed(this::runSearchLoop, delay);
-            }).start();
-        });
     }
 
     Bitmap trim(Bitmap bmp) {
