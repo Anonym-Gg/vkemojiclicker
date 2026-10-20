@@ -273,7 +273,7 @@ public class MainActivity extends AppCompatActivity {
         settingsPanel.setPadding(dp(4), dp(4), dp(4), dp(4));
         settingsPanel.setBackgroundColor(0xFF2F2F2F);
 
-        sensInput = makeWideInput("70");
+        sensInput = makeWideInput("55");
         zoneY0Input = makeWideInput("58");
         zoneY1Input = makeWideInput("88");
         cdMinInput = makeWideInput("1.4");
@@ -547,7 +547,7 @@ public class MainActivity extends AppCompatActivity {
             if (v > 98) v = 98;
             return v / 100f;
         } catch (Exception e) {
-            return 0.70f;
+            return 0.55f;
         }
     }
 

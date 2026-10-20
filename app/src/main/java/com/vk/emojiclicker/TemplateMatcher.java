@@ -63,7 +63,7 @@ public class TemplateMatcher {
             for (int i = 0; i < tp.length; i++) {
                 int c = tp[i];
                 int a = (c >>> 24) & 0xff;
-                boolean usable = a > 40; // ignore nearly transparent pixels
+                boolean usable = a > 25; // ignore nearly transparent pixels
                 mask[i] = usable;
                 if (usable) {
                     t[i] = (short)(((c >> 16) & 0xff) * 299 / 1000
