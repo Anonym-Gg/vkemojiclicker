@@ -1,4 +1,4 @@
-name: Build APK
+﻿name: Build APK
 
 on:
   push:
@@ -18,30 +18,20 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Gradle 8.4
+      - name: Download Gradle 8.4
         run: |
-          sudo add-apt-repository -y ppa:cwchien/gradle 2>/dev/null || true
-          sudo apt-get update -q || true
-          sudo apt-get install -y gradle || true
-          gradle --version
+          curl -fsSL -o gradle.zip https://services.gradle.org/distributions/gradle-8.4-bin.zip
+          unzip -q gradle.zip
+          rm gradle.zip
 
       - name: Generate wrapper
-        run: gradle wrapper --gradle-version 8.4 || true
+        run: gradle-8.4/bin/gradle wrapper --gradle-version 8.4
 
       - name: Grant execute permission
-        run: chmod +x gradlew || true
+        run: chmod +x gradlew
 
       - name: Build debug APK
-        run: |
-          if [ -f gradlew ]; then
-            ./gradlew assembleDebug --no-daemon
-          else
-            gradle assembleDebug --no-daemon
-          fi
-        working-directory: .
+        run: ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
