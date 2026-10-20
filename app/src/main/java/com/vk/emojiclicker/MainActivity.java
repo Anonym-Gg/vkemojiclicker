@@ -55,7 +55,6 @@ public class MainActivity extends AppCompatActivity {
     boolean useDefaultSearch = false; // when true: search built-in ⚔️ (priority) and 🎁 (normal)
     boolean panelCollapsed = true;    // floating bubble mode (panel hidden)
     TextView bubble;                  // floating circle button to show/collapse the panel
-    ScreenCapture capture;            // screen capture for real VK app (MediaProjection)
     static final int PROJECTION_REQUEST = 2001;
 
     // Built-in default templates (rendered), used when "Поиск по умолчанию" is on
@@ -209,12 +208,14 @@ public class MainActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == PROJECTION_REQUEST) {
             if (resultCode == RESULT_OK && data != null) {
-                if (capture == null) capture = new ScreenCapture();
-                boolean ok = capture.start(this, resultCode, data);
-                if (ok) {
-                    Toast.makeText(this, "Захват экрана ВКЛЮЧЁН", Toast.LENGTH_LONG).show();
-                } else {
-                    Toast.makeText(this, "Не удалось включить захват экрана", Toast.LENGTH_LONG).show();
+                try {
+                    Intent svc = new Intent(this, CaptureService.class);
+                    svc.putExtra("resultCode", resultCode);
+                    svc.putExtra("data", data);
+                    startForegroundService(svc);
+                    Toast.makeText(this, "Захват экрана запускается…", Toast.LENGTH_LONG).show();
+                } catch (Exception e) {
+                    Toast.makeText(this, "Ошибка запуска захвата: " + e.getMessage(), Toast.LENGTH_LONG).show();
                 }
             } else {
                 Toast.makeText(this, "Захват экрана отменён", Toast.LENGTH_SHORT).show();
@@ -764,9 +765,9 @@ public class MainActivity extends AppCompatActivity {
 
 Bitmap captureWebView() {
         // Prefer real screen capture (works with the real VK app) when available
-        if (capture != null && capture.isRunning()) {
+        if (CaptureService.isCapturing()) {
             try {
-                Bitmap b = capture.grab();
+                Bitmap b = CaptureService.grabScreen();
                 if (b != null) return b;
             } catch (Exception ignored) {}
         }
@@ -837,10 +838,9 @@ Bitmap captureWebView() {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (capture != null) {
-            capture.stop();
-            capture = null;
-        }
+        try {
+            stopService(new Intent(this, CaptureService.class));
+        } catch (Exception ignored) {}
     }
 
     @Override
