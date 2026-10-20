@@ -353,6 +353,10 @@ public class MainActivity extends AppCompatActivity {
                     handler.post(() -> Toast.makeText(this, "Не удалось сделать скриншот", Toast.LENGTH_SHORT).show());
                     return;
                 }
+                if (isEmptyFrame(shot)) {
+                    handler.post(() -> Toast.makeText(this, "Скриншот пустой — вкладка не видна или ещё грузится", Toast.LENGTH_LONG).show());
+                    return;
+                }
                 Bitmap roi = cropZone(shot);
                 int offset = roi != null ? zoneOffsets[0] : 0;
                 boolean found = findMatch(roi, priorityTemplate, "приоритет", getSensitivity(), true, offset);
@@ -375,6 +379,11 @@ public class MainActivity extends AppCompatActivity {
                 final Bitmap[] holder = new Bitmap[1];
                 holder[0] = captureUiThread();
                 if (holder[0] != null) {
+                    if (isEmptyFrame(holder[0])) {
+                        handler.post(() -> Toast.makeText(this, "Скриншот пустой — проверь, что вкладка VK открыта", Toast.LENGTH_LONG).show());
+                        try { Thread.sleep(2000); } catch (InterruptedException ignored) {}
+                        continue;
+                    }
                     Bitmap roi = cropZone(holder[0]);
                     int offset = roi != null ? zoneOffsets[0] : 0;
                     final float minScore = getSensitivity();
@@ -413,6 +422,23 @@ public class MainActivity extends AppCompatActivity {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    // true if frame is (nearly) all white/black — means our capture is broken
+    boolean isEmptyFrame(Bitmap bmp) {
+        if (bmp == null) return true;
+        int w = Math.min(bmp.getWidth(), 64);
+        int h = Math.min(bmp.getHeight(), 64);
+        int[] p = new int[w * h];
+        bmp.getPixels(p, 0, w, 0, 0, w, h);
+        int nonUniform = 0;
+        for (int v : p) {
+            int r = (v >> 16) & 0xff, g = (v >> 8) & 0xff, b = v & 0xff;
+            int mx = Math.max(r, Math.max(g, b)), mn = Math.min(r, Math.min(g, b));
+            int lum = (r * 299 + g * 587 + b * 114) / 1000;
+            if (mx - mn > 40 || (lum > 20 && lum < 235)) nonUniform++;
+        }
+        return nonUniform < (w * h) / 100; // <1% varied pixels = blank
     }
 
     float getSensitivity() {
@@ -514,14 +540,18 @@ public class MainActivity extends AppCompatActivity {
 
     Bitmap captureWebView() {
         try {
-            // MUST be called on the UI thread. getDrawingCache() is unreliable
-            // for hardware-accelerated WebView, so draw into a fresh bitmap instead.
             int w = webView.getWidth();
             int h = webView.getHeight();
             if (w <= 0 || h <= 0) return null;
+            // Hardware-accelerated WebView often draws nothing into a CPU canvas.
+            // Force a software layer while capturing so pixels are real.
+            int prevLayer = webView.getLayerType();
+            boolean wasHardwareAccelerated = webView.isHardwareAccelerated();
+            webView.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
             Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
             Canvas c = new Canvas(bmp);
             webView.draw(c);
+            webView.setLayerType(prevLayer, null);
             return bmp;
         } catch (Exception e) {
             return null;
