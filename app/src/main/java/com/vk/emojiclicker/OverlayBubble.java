@@ -61,6 +61,7 @@ public class OverlayBubble {
         bubbleParams.x = 10 * dp;
         bubbleParams.y = 200 * dp;
         bubble.setOnClickListener(v -> togglePanel());
+        setupDrag();
 
         panel = new FrameLayout(context);
         panel.setBackgroundColor(0xEE222222);
@@ -117,5 +118,40 @@ public class OverlayBubble {
     private void togglePanel() {
         panelVisible = !panelVisible;
         panel.setVisibility(panelVisible ? View.VISIBLE : View.GONE);
+    }
+
+    // move the bubble anywhere on screen (WindowManager overlay)
+    private void setupDrag() {
+        bubble.setOnTouchListener(new View.OnTouchListener() {
+            float startX, startY;
+            int startPx, startPy;
+            boolean moved;
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                switch (event.getActionMasked()) {
+                    case MotionEvent.ACTION_DOWN:
+                        startX = event.getRawX();
+                        startY = event.getRawY();
+                        startPx = bubbleParams.x;
+                        startPy = bubbleParams.y;
+                        moved = false;
+                        return false; // allow click
+                    case MotionEvent.ACTION_MOVE:
+                        float dx = event.getRawX() - startX;
+                        float dy = event.getRawY() - startY;
+                        if (Math.abs(dx) > 6 || Math.abs(dy) > 6) moved = true;
+                        if (moved) {
+                            bubbleParams.x = startPx + (int) dx;
+                            bubbleParams.y = startPy + (int) dy;
+                            wm.updateViewLayout(bubble, bubbleParams);
+                            return true; // drag consumes the gesture
+                        }
+                        return false;
+                    case MotionEvent.ACTION_UP:
+                        return moved; // if dragged, don't fire click; else let click happen
+                }
+                return false;
+            }
+        });
     }
 }

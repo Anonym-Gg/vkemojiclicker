@@ -618,23 +618,36 @@ public class MainActivity extends AppCompatActivity {
     // Each iteration always waits the cooldown (CD) before the next scan,
     // so it never hot-spins or "freezes".
     void autoLoopWorker() {
+        int emptyFrames = 0;
         while (autoLoop) {
             try {
-                final Bitmap[] holder = new Bitmap[1];
-                holder[0] = captureUiThread();
-                if (holder[0] != null) {
-                    if (isEmptyFrame(holder[0])) {
-                        handler.post(() -> Toast.makeText(this, "Скриншот пустой — проверь, что вкладка VK открыта", Toast.LENGTH_LONG).show());
-                        try { Thread.sleep(2000); } catch (InterruptedException ignored) {}
-                        continue;
+                Bitmap shot = null;
+                // Prefer direct screen capture (no UI thread round-trip, works in background)
+                if (CaptureService.isCapturing()) {
+                    shot = CaptureService.grabScreen();
+                } else {
+                    shot = captureUiThread();
+                }
+                if (shot == null) {
+                    handler.post(() -> Toast.makeText(this, "Нет скриншота: включи «Захват экрана»", Toast.LENGTH_LONG).show());
+                    try { Thread.sleep(2000); } catch (InterruptedException ignored) {}
+                    continue;
+                }
+                if (isEmptyFrame(shot)) {
+                    emptyFrames++;
+                    if (emptyFrames == 1) {
+                        handler.post(() -> Toast.makeText(this, "Скриншот пустой — открой приложение VK с сеткой 4×4", Toast.LENGTH_LONG).show());
                     }
-                    Bitmap roi = cropZone(holder[0]);
-                    int offset = roi != null ? zoneOffsets[0] : 0;
-                    final float minScore = getSensitivity();
-                    boolean found = findMatch(roi, getPriorityTemplate(), "приоритет", minScore, false, offset);
-                    if (!found && getNormalTemplate() != null) {
-                        found = findMatch(roi, getNormalTemplate(), "не приоритет", minScore, false, offset);
-                    }
+                    try { Thread.sleep(1500); } catch (InterruptedException ignored) {}
+                    continue;
+                }
+                emptyFrames = 0;
+                Bitmap roi = cropZone(shot);
+                int offset = roi != null ? zoneOffsets[0] : 0;
+                final float minScore = getSensitivity();
+                boolean found = findMatch(roi, getPriorityTemplate(), "приоритет", minScore, false, offset);
+                if (!found && getNormalTemplate() != null) {
+                    found = findMatch(roi, getNormalTemplate(), "не приоритет", minScore, false, offset);
                 }
                 // always wait CD between iterations
                 int cd = currentCdDelay();
