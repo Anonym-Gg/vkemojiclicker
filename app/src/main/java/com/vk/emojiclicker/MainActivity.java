@@ -541,7 +541,7 @@ public class MainActivity extends AppCompatActivity {
                 () -> { autoLoop = false; Toast.makeText(this, "Стоп", Toast.LENGTH_SHORT).show(); },
                 () -> { /* открыть настройки в приложении: развернуть панель */ });
         overlay.show();
-        Toast.makeText(this, "Пузырь ⚔️ теперь поверх всех приложений", Toast.LENGTH_LONG).show();
+        Toast.makeText(this, "Пузырь ⚔️ поверх экрана. Перетащи его в угол, чтобы не мешал поиску", Toast.LENGTH_LONG).show();
     }
 
     void requestScreenCapture() {
@@ -559,6 +559,18 @@ public class MainActivity extends AppCompatActivity {
         boolean hasTemplate = getPriorityTemplate() != null || getNormalTemplate() != null;
         if (!hasTemplate) {
             Toast.makeText(this, "Сначала включи «Поиск по умолчанию» или прикрепи фото эмодзи", Toast.LENGTH_LONG).show();
+            return;
+        }
+        // Check prerequisites for working in the REAL VK app
+        if (VkClickerService.getInstance() == null) {
+            Toast.makeText(this, "Включи службу доступности: Настройки → Доступность → VK Emoji Pro", Toast.LENGTH_LONG).show();
+            try {
+                startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
+            } catch (Exception ignored) {}
+            return;
+        }
+        if (!CaptureService.isCapturing()) {
+            Toast.makeText(this, "Сначала включи «Захват экрана» (кнопка на панели)", Toast.LENGTH_LONG).show();
             return;
         }
         if (autoLoop) {
