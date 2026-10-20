@@ -57,6 +57,13 @@ public class MainActivity extends AppCompatActivity {
     TextView priorityFileTv = null;
     TextView normalFileTv = null;
 
+    // Settings (PC defaults)
+    EditText sensInput;        // 20..98, default 78
+    EditText zoneY0Input;      // percent 0..100, default 58
+    EditText zoneY1Input;      // percent 0..100, default 88
+    EditText cdMinInput;       // seconds, default 1.4
+    EditText cdMaxInput;       // seconds, default 1.9
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -183,6 +190,30 @@ public class MainActivity extends AppCompatActivity {
         Toast.makeText(this, "Фото прикреплено", Toast.LENGTH_SHORT).show();
     }
 
+    EditText makeSettingInput(String def, int widthDp) {
+        EditText et = new EditText(this);
+        et.setText(def);
+        et.setTextSize(12);
+        et.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        et.setGravity(Gravity.CENTER);
+        et.setTextColor(Color.WHITE);
+        et.setBackgroundColor(0xFF444444);
+        et.setSingleLine(true);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(widthDp), dp(32));
+        lp.leftMargin = dp(2);
+        lp.rightMargin = dp(2);
+        et.setLayoutParams(lp);
+        return et;
+    }
+
+    TextView makeSettingLabel(String text) {
+        TextView tv = new TextView(this);
+        tv.setText(text);
+        tv.setTextSize(11);
+        tv.setTextColor(0xFFDDDDDD);
+        return tv;
+    }
+
     void buildMainUI() {
         // replace license content with main UI
         licenseLayout.removeAllViews();
@@ -207,6 +238,29 @@ public class MainActivity extends AppCompatActivity {
         addPhotoPanel(pickerWrap, "НЕ ПРИОРИТЕТ (прикрепи фото эмодзи)", PICK_NORMAL, false);
 
         pickerPanel.addView(pickerWrap);
+
+        // settings row: sensitivity, zone Y (%), cooldown
+        LinearLayout settingsRow = new LinearLayout(this);
+        settingsRow.setOrientation(LinearLayout.HORIZONTAL);
+        settingsRow.setPadding(dp(0), dp(4), dp(0), dp(4));
+        settingsRow.setGravity(Gravity.CENTER_VERTICAL);
+
+        sensInput = makeSettingInput("78", 3);
+        zoneY0Input = makeSettingInput("58", 3);
+        zoneY1Input = makeSettingInput("88", 3);
+        cdMinInput = makeSettingInput("1.4", 4);
+        cdMaxInput = makeSettingInput("1.9", 4);
+
+        settingsRow.addView(makeSettingLabel("Чувств:"));
+        settingsRow.addView(sensInput);
+        settingsRow.addView(makeSettingLabel("Зона%:"));
+        settingsRow.addView(zoneY0Input);
+        settingsRow.addView(makeSettingLabel("-"));
+        settingsRow.addView(zoneY1Input);
+        settingsRow.addView(makeSettingLabel("КД:"));
+        settingsRow.addView(cdMinInput);
+        settingsRow.addView(makeSettingLabel("-"));
+        settingsRow.addView(cdMaxInput);
 
         // buttons: Search once / Auto / Stop
         LinearLayout btns = new LinearLayout(this);
@@ -242,6 +296,7 @@ public class MainActivity extends AppCompatActivity {
         btns.addView(searchBtn); btns.addView(autoBtn); btns.addView(stopBtn);
 
         toolbar.addView(pickerPanel);
+        toolbar.addView(settingsRow);
         toolbar.addView(btns);
 
         // WebView fills the rest
@@ -280,30 +335,85 @@ public class MainActivity extends AppCompatActivity {
                     handler.post(() -> Toast.makeText(this, "Не удалось сделать скриншот", Toast.LENGTH_SHORT).show());
                     return;
                 }
+                final float minScore = getSensitivity();
                 // priority first, then normal
-                if (tryFindAndTap(shot, priorityTemplate, "приоритет")) return;
-                if (tryFindAndTap(shot, normalTemplate, "не приоритет")) return;
+                if (tryFindAndTap(shot, priorityTemplate, "приоритет", minScore)) return;
+                if (tryFindAndTap(shot, normalTemplate, "не приоритет", minScore)) return;
                 handler.post(() -> Toast.makeText(this, "Ничего не найдено", Toast.LENGTH_SHORT).show());
             }).start();
         });
     }
 
+    float getSensitivity() {
+        try {
+            float v = Float.parseFloat(sensInput.getText().toString().trim());
+            if (v < 20) v = 20;
+            if (v > 98) v = 98;
+            return v / 100f;
+        } catch (Exception e) {
+            return 0.78f;
+        }
+    }
+
+    // returns crop of shot by zone (Y from/to in percents of height), or null
+    int[] zoneOffsets = new int[2]; // [offsetTop, cropHeight] lazily used
+
+    Bitmap cropZone(Bitmap shot) {
+        int h = shot.getHeight();
+        float y0p, y1p;
+        try {
+            y0p = Float.parseFloat(zoneY0Input.getText().toString().trim());
+            y1p = Float.parseFloat(zoneY1Input.getText().toString().trim());
+        } catch (Exception e) {
+            y0p = 58f; y1p = 88f;
+        }
+        if (y0p < 0) y0p = 0; if (y0p > 100) y0p = 100;
+        if (y1p < 0) y1p = 0; if (y1p > 100) y1p = 100;
+        if (y1p <= y0p) y1p = y0p + 10f;
+        int y0 = (int)(h * y0p / 100f);
+        int y1 = (int)(h * y1p / 100f);
+        y0 = Math.max(0, Math.min(y0, h-1));
+        y1 = Math.max(y0+1, Math.min(y1, h));
+        zoneOffsets[0] = y0;
+        zoneOffsets[1] = y1 - y0;
+        return Bitmap.createBitmap(shot, 0, y0, shot.getWidth(), y1-y0);
+    }
+
     // returns true if found & tapped; must be called on background thread
-    boolean tryFindAndTap(final Bitmap shot, final Bitmap tpl, final String label) {
+    boolean tryFindAndTap(final Bitmap shot, final Bitmap tpl, final String label, float minScore) {
         if (tpl == null) return false;
-        TemplateMatcher.Match m = TemplateMatcher.findBest(shot, tpl);
+        Bitmap roi = cropZone(shot);
+        if (roi == null) return false;
+        TemplateMatcher.Match m = TemplateMatcher.findBest(roi, tpl);
         if (m == null) return false;
-        if (m.score < 0.6f) {
+        // convert back to full screenshot coords (zone is only a crop)
+        int absY = m.y + zoneOffsets[0];
+        if (m.score < minScore) {
             final float sc = m.score;
             handler.post(() -> Toast.makeText(this, label + ": совпадение " + Math.round(sc*100) + "% (не кликнул)", Toast.LENGTH_SHORT).show());
             return false;
         }
+        final int tapY = absY + (int)(m.templateH * 0.55f);
+        final int tapX = m.x;
         handler.post(() -> {
-            cursorOverlay.showAt(m.x, m.y);
-            tapAt(m.x, m.y);
+            cursorOverlay.showAt(tapX, tapY);
+            tapAt(tapX, tapY);
             Toast.makeText(this, "Кликнул: " + label + " (" + Math.round(m.score*100) + "%)", Toast.LENGTH_SHORT).show();
         });
         return true;
+    }
+
+    int currentCdDelay() {
+        float lo, hi;
+        try {
+            lo = Float.parseFloat(cdMinInput.getText().toString().trim());
+            hi = Float.parseFloat(cdMaxInput.getText().toString().trim());
+        } catch (Exception e) {
+            lo = 1.4f; hi = 1.9f;
+        }
+        if (hi < lo) hi = lo;
+        double d = lo + Math.random() * (hi - lo);
+        return (int)(d * 1000);
     }
 
     void runSearchLoop() {
@@ -312,18 +422,19 @@ public class MainActivity extends AppCompatActivity {
             final Bitmap shot = captureWebView();
             new Thread(() -> {
                 if (shot != null) {
+                    final float minScore = getSensitivity();
                     // priority first
-                    if (tryFindAndTap(shot, priorityTemplate, "приоритет")) {
-                        handler.postDelayed(this::runSearchLoop, 1200);
+                    if (tryFindAndTap(shot, priorityTemplate, "приоритет", minScore)) {
+                        handler.postDelayed(this::runSearchLoop, currentCdDelay());
                         return;
                     }
                     // then normal
-                    if (tryFindAndTap(shot, normalTemplate, "не приоритет")) {
-                        handler.postDelayed(this::runSearchLoop, 1200);
+                    if (tryFindAndTap(shot, normalTemplate, "не приоритет", minScore)) {
+                        handler.postDelayed(this::runSearchLoop, currentCdDelay());
                         return;
                     }
                 }
-                handler.postDelayed(this::runSearchLoop, 1200);
+                handler.postDelayed(this::runSearchLoop, currentCdDelay());
             }).start();
         });
     }

@@ -1,0 +1,237 @@
+﻿ï»¿2026-10-20T13:42:34.9388852Z Current runner version: '2.337.0'
+2026-10-20T13:42:34.9414603Z ##[group]Runner Image Provisioner
+2026-10-20T13:42:34.9415606Z Hosted Compute Agent
+2026-10-20T13:42:34.9416333Z Version: 20261015.610
+2026-10-20T13:42:34.9417019Z Commit: 267fdb4e8bbec4ab5ea31367f3a00d5c480c7656
+2026-10-20T13:42:34.9417771Z Build Date: 2026-10-14T17:06:54Z
+2026-10-20T13:42:34.9418581Z Worker ID: {2b9c2302-9948-48fd-ae63-665482acac78}
+2026-10-20T13:42:34.9419323Z Region: westus
+2026-10-20T13:42:34.9419898Z Cloud: Azure
+2026-10-20T13:42:34.9420535Z ##[endgroup]
+2026-10-20T13:42:34.9422575Z ##[group]Operating System
+2026-10-20T13:42:34.9423376Z Ubuntu
+2026-10-20T13:42:34.9423987Z 24.04.5
+2026-10-20T13:42:34.9425227Z LTS
+2026-10-20T13:42:34.9425890Z ##[endgroup]
+2026-10-20T13:42:34.9426468Z ##[group]Runner Image
+2026-10-20T13:42:34.9427121Z Image: ubuntu-24.04
+2026-10-20T13:42:34.9427725Z Version: 20261018.339.1
+2026-10-20T13:42:34.9429095Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261018.339/images/ubuntu/Ubuntu2404-Readme.md
+2026-10-20T13:42:34.9430662Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261018.339
+2026-10-20T13:42:34.9431663Z ##[endgroup]
+2026-10-20T13:42:34.9432932Z ##[group]GITHUB_TOKEN Permissions
+2026-10-20T13:42:34.9435779Z Contents: read
+2026-10-20T13:42:34.9436445Z Metadata: read
+2026-10-20T13:42:34.9437028Z Packages: read
+2026-10-20T13:42:34.9437641Z ##[endgroup]
+2026-10-20T13:42:34.9439844Z Secret source: Actions
+2026-10-20T13:42:34.9440933Z Cache mode: write
+2026-10-20T13:42:34.9441652Z Prepare workflow directory
+2026-10-20T13:42:34.9789418Z Prepare all required actions
+2026-10-20T13:42:34.9839914Z Getting action download info
+2026-10-20T13:42:35.3676936Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-10-20T13:42:35.4876100Z Download action repository 'actions/setup-java@v4' (SHA:cf277c60eb25467037889841efdb72551f06f6c3)
+2026-10-20T13:42:36.0002443Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-10-20T13:42:36.2262042Z Complete job name: build
+2026-10-20T13:42:36.3045090Z ##[group]Run actions/checkout@v4
+2026-10-20T13:42:36.3046049Z with:
+2026-10-20T13:42:36.3046524Z   repository: Anonym-Gg/vkemojiclicker
+2026-10-20T13:42:36.3050139Z   token: ***
+2026-10-20T13:42:36.3050572Z   ssh-strict: true
+2026-10-20T13:42:36.3051009Z   ssh-user: git
+2026-10-20T13:42:36.3051457Z   persist-credentials: true
+2026-10-20T13:42:36.3051956Z   clean: true
+2026-10-20T13:42:36.3052412Z   sparse-checkout-cone-mode: true
+2026-10-20T13:42:36.3052932Z   fetch-depth: 1
+2026-10-20T13:42:36.3053364Z   fetch-tags: false
+2026-10-20T13:42:36.3053805Z   show-progress: true
+2026-10-20T13:42:36.3054630Z   lfs: false
+2026-10-20T13:42:36.3055064Z   submodules: false
+2026-10-20T13:42:36.3055510Z   set-safe-directory: true
+2026-10-20T13:42:36.3056015Z   allow-unsafe-pr-checkout: false
+2026-10-20T13:42:36.3056878Z ##[endgroup]
+2026-10-20T13:42:36.4118914Z Syncing repository: Anonym-Gg/vkemojiclicker
+2026-10-20T13:42:36.4121647Z ##[group]Getting Git version info
+2026-10-20T13:42:36.4122953Z Working directory is '/home/runner/work/vkemojiclicker/vkemojiclicker'
+2026-10-20T13:42:36.4125060Z [command]/usr/bin/git version
+2026-10-20T13:42:36.4189967Z git version 2.55.0
+2026-10-20T13:42:36.4213413Z ##[endgroup]
+2026-10-20T13:42:36.4229582Z Temporarily overriding HOME='/home/runner/work/_temp/e0609368-8e9a-476c-adfe-97c9973a6d77' before making global git config changes
+2026-10-20T13:42:36.4232011Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-20T13:42:36.4235755Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/vkemojiclicker/vkemojiclicker
+2026-10-20T13:42:36.4299702Z Deleting the contents of '/home/runner/work/vkemojiclicker/vkemojiclicker'
+2026-10-20T13:42:36.4306508Z ##[group]Initializing the repository
+2026-10-20T13:42:36.4310989Z [command]/usr/bin/git init /home/runner/work/vkemojiclicker/vkemojiclicker
+2026-10-20T13:42:36.4428190Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-10-20T13:42:36.4432575Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-10-20T13:42:36.4434331Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-10-20T13:42:36.4435549Z hint: call:
+2026-10-20T13:42:36.4436175Z hint:
+2026-10-20T13:42:36.4437089Z hint: 	git config --global init.defaultBranch <name>
+2026-10-20T13:42:36.4438118Z hint:
+2026-10-20T13:42:36.4439032Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-10-20T13:42:36.4440542Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-10-20T13:42:36.4441901Z hint:
+2026-10-20T13:42:36.4442741Z hint: 	git branch -m <name>
+2026-10-20T13:42:36.4443575Z hint:
+2026-10-20T13:42:36.4444861Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-10-20T13:42:36.4446915Z Initialized empty Git repository in /home/runner/work/vkemojiclicker/vkemojiclicker/.git/
+2026-10-20T13:42:36.4450968Z [command]/usr/bin/git remote add origin https://github.com/Anonym-Gg/vkemojiclicker
+2026-10-20T13:42:36.4514320Z ##[endgroup]
+2026-10-20T13:42:36.4515764Z ##[group]Disabling automatic garbage collection
+2026-10-20T13:42:36.4518810Z [command]/usr/bin/git config --local gc.auto 0
+2026-10-20T13:42:36.4562333Z ##[endgroup]
+2026-10-20T13:42:36.4563702Z ##[group]Setting up auth
+2026-10-20T13:42:36.4570999Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-20T13:42:36.4613813Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-20T13:42:36.5019092Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-20T13:42:36.5077951Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-20T13:42:36.5332073Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-20T13:42:36.5379997Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-20T13:42:36.5629327Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-10-20T13:42:36.5681287Z ##[endgroup]
+2026-10-20T13:42:36.5682314Z ##[group]Fetching the repository
+2026-10-20T13:42:36.5692361Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +edf5d4e156ac44905407f3e841a2c90430c2353f:refs/remotes/origin/main
+2026-10-20T13:42:36.9844377Z From https://github.com/Anonym-Gg/vkemojiclicker
+2026-10-20T13:42:36.9846322Z  * [new ref]         edf5d4e156ac44905407f3e841a2c90430c2353f -> origin/main
+2026-10-20T13:42:36.9850622Z ##[endgroup]
+2026-10-20T13:42:36.9852400Z ##[group]Determining the checkout info
+2026-10-20T13:42:36.9854830Z ##[endgroup]
+2026-10-20T13:42:36.9861183Z [command]/usr/bin/git sparse-checkout disable
+2026-10-20T13:42:36.9936160Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-10-20T13:42:36.9983745Z ##[group]Checking out the ref
+2026-10-20T13:42:36.9988695Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-10-20T13:42:37.0088376Z Switched to a new branch 'main'
+2026-10-20T13:42:37.0096007Z branch 'main' set up to track 'origin/main'.
+2026-10-20T13:42:37.0102766Z ##[endgroup]
+2026-10-20T13:42:37.0160914Z [command]/usr/bin/git log -1 --format=%H
+2026-10-20T13:42:37.0198332Z edf5d4e156ac44905407f3e841a2c90430c2353f
+2026-10-20T13:42:37.0735070Z ##[group]Run actions/setup-java@v4
+2026-10-20T13:42:37.0735779Z with:
+2026-10-20T13:42:37.0736244Z   distribution: temurin
+2026-10-20T13:42:37.0736754Z   java-version: 17
+2026-10-20T13:42:37.0737472Z   java-package: jdk
+2026-10-20T13:42:37.0737979Z   check-latest: false
+2026-10-20T13:42:37.0738470Z   server-id: github
+2026-10-20T13:42:37.0738972Z   server-username: GITHUB_ACTOR
+2026-10-20T13:42:37.0739604Z   server-password: GITHUB_TOKEN
+2026-10-20T13:42:37.0740179Z   overwrite-settings: true
+2026-10-20T13:42:37.0740710Z   job-status: success
+2026-10-20T13:42:37.0745191Z   token: ***
+2026-10-20T13:42:37.0745679Z ##[endgroup]
+2026-10-20T13:42:37.2580643Z ##[warning]setup-java v4 is deprecated and will no longer receive updates. Please migrate to actions/setup-java@v5.
+2026-10-20T13:42:37.2591121Z ##[group]Installed distributions
+2026-10-20T13:42:37.2832707Z Resolved Java 17.0.20+1 from tool-cache
+2026-10-20T13:42:37.2834901Z Setting Java 17.0.20+1 as the default
+2026-10-20T13:42:37.2846538Z (node:2300) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-20T13:42:37.2849667Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-20T13:42:37.2851614Z Creating toolchains.xml for JDK version 17 from temurin
+2026-10-20T13:42:37.2925870Z Writing to /home/runner/.m2/toolchains.xml
+2026-10-20T13:42:37.2927034Z 
+2026-10-20T13:42:37.2927529Z Java configuration:
+2026-10-20T13:42:37.2928493Z   Distribution: temurin
+2026-10-20T13:42:37.2929470Z   Version: 17.0.20+1
+2026-10-20T13:42:37.2931272Z   Path: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.20-1/x64
+2026-10-20T13:42:37.2932965Z 
+2026-10-20T13:42:37.2935521Z ##[endgroup]
+2026-10-20T13:42:37.2956409Z Creating settings.xml with server-id: github
+2026-10-20T13:42:37.2988374Z Writing to /home/runner/.m2/settings.xml
+2026-10-20T13:42:37.3258216Z ##[group]Run curl -fsSL -o /tmp/gradle.zip https://services.gradle.org/distributions/gradle-8.4-bin.zip
+2026-10-20T13:42:37.3261568Z [36;1mcurl -fsSL -o /tmp/gradle.zip https://services.gradle.org/distributions/gradle-8.4-bin.zip[0m
+2026-10-20T13:42:37.3264591Z [36;1munzip -q /tmp/gradle.zip -d /tmp[0m
+2026-10-20T13:42:37.3267189Z [36;1mls /tmp/gradle-8.4/bin[0m
+2026-10-20T13:42:37.3488278Z shell: /usr/bin/bash -e {0}
+2026-10-20T13:42:37.3490340Z env:
+2026-10-20T13:42:37.3492728Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.20-1/x64
+2026-10-20T13:42:37.3496400Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.20-1/x64
+2026-10-20T13:42:37.3499071Z ##[endgroup]
+2026-10-20T13:42:39.2087436Z gradle
+2026-10-20T13:42:39.2088028Z gradle.bat
+2026-10-20T13:42:39.2153063Z ##[group]Run /tmp/gradle-8.4/bin/gradle assembleDebug --no-daemon
+2026-10-20T13:42:39.2153639Z [36;1m/tmp/gradle-8.4/bin/gradle assembleDebug --no-daemon[0m
+2026-10-20T13:42:39.2207556Z shell: /usr/bin/bash -e {0}
+2026-10-20T13:42:39.2207869Z env:
+2026-10-20T13:42:39.2208242Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.20-1/x64
+2026-10-20T13:42:39.2208816Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.20-1/x64
+2026-10-20T13:42:39.2209256Z ##[endgroup]
+2026-10-20T13:42:41.6914005Z 
+2026-10-20T13:42:41.6915051Z Welcome to Gradle 8.4!
+2026-10-20T13:42:41.6915628Z 
+2026-10-20T13:42:41.6918721Z Here are the highlights of this release:
+2026-10-20T13:42:41.6928456Z  - Compiling and testing with Java 21
+2026-10-20T13:42:41.6929608Z  - Faster Java compilation on Windows
+2026-10-20T13:42:41.6930485Z  - Role focused dependency configurations creation
+2026-10-20T13:42:41.6931124Z 
+2026-10-20T13:42:41.6931810Z For more details see https://docs.gradle.org/8.4/release-notes.html
+2026-10-20T13:42:41.6932631Z 
+2026-10-20T13:42:41.9902942Z To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.4/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+2026-10-20T13:42:43.7898820Z Daemon will be stopped at the end of the build 
+2026-10-20T13:43:06.5917996Z > Task :app:preBuild UP-TO-DATE
+2026-10-20T13:43:06.5925131Z > Task :app:preDebugBuild UP-TO-DATE
+2026-10-20T13:43:06.5926541Z > Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
+2026-10-20T13:43:06.6898452Z > Task :app:javaPreCompileDebug
+2026-10-20T13:43:10.8899040Z > Task :app:generateDebugResValues
+2026-10-20T13:43:10.8900063Z > Task :app:checkDebugAarMetadata
+2026-10-20T13:43:10.9897342Z > Task :app:mapDebugSourceSetPaths
+2026-10-20T13:43:10.9898374Z > Task :app:generateDebugResources
+2026-10-20T13:43:12.4897868Z > Task :app:packageDebugResources
+2026-10-20T13:43:13.7912614Z > Task :app:createDebugCompatibleScreenManifests
+2026-10-20T13:43:13.7916962Z > Task :app:extractDeepLinksDebug
+2026-10-20T13:43:13.8898046Z > Task :app:parseDebugLocalResources
+2026-10-20T13:43:13.9905517Z > Task :app:mergeDebugResources
+2026-10-20T13:43:14.2897646Z > Task :app:processDebugMainManifest
+2026-10-20T13:43:14.5903505Z > Task :app:processDebugManifest
+2026-10-20T13:43:14.5933969Z > Task :app:mergeDebugShaders
+2026-10-20T13:43:14.5935304Z > Task :app:compileDebugShaders NO-SOURCE
+2026-10-20T13:43:14.5936329Z > Task :app:generateDebugAssets UP-TO-DATE
+2026-10-20T13:43:14.6897148Z > Task :app:mergeDebugAssets FROM-CACHE
+2026-10-20T13:43:14.6898161Z > Task :app:compressDebugAssets
+2026-10-20T13:43:14.6913374Z > Task :app:processDebugJavaRes NO-SOURCE
+2026-10-20T13:43:14.6914492Z > Task :app:processDebugManifestForPackage
+2026-10-20T13:43:17.1897014Z > Task :app:processDebugResources
+2026-10-20T13:43:18.0938384Z > Task :app:mergeDebugJavaResource
+2026-10-20T13:43:20.3916783Z /home/runner/work/vkemojiclicker/vkemojiclicker/app/src/main/java/com/vk/emojiclicker/MainActivity.java:166: error: incompatible types: possible lossy conversion from float to int
+2026-10-20T13:43:20.3918254Z 
+2026-10-20T13:43:20.3945288Z                 ViewGroup.LayoutParams.MATCH_PARENT, dp(0), 1f);
+2026-10-20T13:43:20.3946063Z > Task :app:compileDebugJavaWithJavac
+2026-10-20T13:43:20.3974885Z                                                             ^
+2026-10-20T13:43:20.4896909Z Note: Some input files use or override a deprecated API.
+2026-10-20T13:43:20.4925437Z Note: Recompile with -Xlint:deprecation for details.
+2026-10-20T13:43:20.4925906Z 
+2026-10-20T13:43:20.4926182Z > Task :app:compileDebugJavaWithJavac FAILED
+2026-10-20T13:43:20.4935638Z Note: Some messages have been simplified; recompile with -Xdiags:verbose to get full output
+2026-10-20T13:43:20.4936564Z 18 actionable tasks: 17 executed, 1 from cache
+2026-10-20T13:43:20.4937633Z 1 error
+2026-10-20T13:43:20.4938150Z 
+2026-10-20T13:43:20.4939135Z FAILURE: Build failed with an exception.
+2026-10-20T13:43:20.4939829Z 
+2026-10-20T13:43:20.4940166Z * What went wrong:
+2026-10-20T13:43:20.4940884Z Execution failed for task ':app:compileDebugJavaWithJavac'.
+2026-10-20T13:43:20.4941924Z > Compilation failed; see the compiler error output for details.
+2026-10-20T13:43:20.4942584Z 
+2026-10-20T13:43:20.4942930Z * Try:
+2026-10-20T13:43:20.4943569Z > Run with --info option to get more log output.
+2026-10-20T13:43:20.4944659Z > Run with --scan to get full insights.
+2026-10-20T13:43:20.4945242Z 
+2026-10-20T13:43:20.4945612Z BUILD FAILED in 39s
+2026-10-20T13:43:20.9298941Z ##[error]Process completed with exit code 1.
+2026-10-20T13:43:20.9490718Z Post job cleanup.
+2026-10-20T13:43:21.0936512Z (node:2504) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-20T13:43:21.0938033Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-20T13:43:21.1151374Z Post job cleanup.
+2026-10-20T13:43:21.2099508Z [command]/usr/bin/git version
+2026-10-20T13:43:21.2146519Z git version 2.55.0
+2026-10-20T13:43:21.2185169Z Temporarily overriding HOME='/home/runner/work/_temp/c8557070-f7cf-4781-9508-ac9b8c195556' before making global git config changes
+2026-10-20T13:43:21.2186482Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-20T13:43:21.2191405Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/vkemojiclicker/vkemojiclicker
+2026-10-20T13:43:21.2234908Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-20T13:43:21.2275229Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-20T13:43:21.2539285Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-20T13:43:21.2570660Z http.https://github.com/.extraheader
+2026-10-20T13:43:21.2583479Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-10-20T13:43:21.2626993Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-20T13:43:21.2903904Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-20T13:43:21.2957139Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-20T13:43:21.3458795Z Cleaning up orphan processes
+2026-10-20T13:43:21.3769158Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-java@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+

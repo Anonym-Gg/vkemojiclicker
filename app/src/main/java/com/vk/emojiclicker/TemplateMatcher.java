@@ -12,7 +12,9 @@ public class TemplateMatcher {
     public static class Match {
         public int x, y;      // центр найденного шаблона
         public float score;   // 0..1, чем ближе к 1 тем лучше
+        public int templateW, templateH; // размер найденного шаблона
         Match(int x, int y, float s) { this.x = x; this.y = y; this.score = s; }
+        Match(int x, int y, float s, int tw, int th) { this.x = x; this.y = y; this.score = s; this.templateW = tw; this.templateH = th; }
     }
 
     public static Bitmap toBitmap(int[] argb, int width, int height) {
@@ -36,7 +38,7 @@ public class TemplateMatcher {
         screen.getPixels(s, 0, sw, 0, 0, sw, sh);
 
         float bestScore = -1f;
-        int bestX = 0, bestY = 0;
+        int bestX = 0, bestY = 0, bestNw = 0, bestNh = 0;
 
         // несколько масштабов шаблона
         float[] scales = {1.0f, 0.9f, 0.8f, 0.7f, 1.1f, 1.2f, 1.3f, 0.6f, 1.4f};
@@ -73,11 +75,13 @@ public class TemplateMatcher {
                         bestScore = score;
                         bestX = x + nw / 2;
                         bestY = y + nh / 2;
+                        bestNw = nw;
+                        bestNh = nh;
                     }
                 }
             }
         }
         if (bestScore < 0f) return null;
-        return new Match(bestX, bestY, bestScore);
+        return new Match(bestX, bestY, bestScore, bestNw, bestNh);
     }
 }
