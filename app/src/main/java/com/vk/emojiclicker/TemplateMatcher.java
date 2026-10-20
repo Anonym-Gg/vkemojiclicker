@@ -4,9 +4,8 @@ import android.graphics.Bitmap;
 
 /**
  * Шаблонный матчинг как в ПК-версии: нормированная кросс-корреляция
- * (аналог cv2.TM_CCOEFF_NORMED) по яркости с учётом маски прозрачности шаблона.
- * Прозрачные пиксели шаблона исключаются из расчёта — шаблон с прозрачным фоном
- * находит эмодзи на любом фоне (светлом/тёмном/цветном).
+ * (аналог cv2.TM_CCOEFF_NORMED) по яркости. Без маски прозрачности —
+ * как на ПК, где картинка уже вырезана. Простая и предсказуемая математика.
  */
 public class TemplateMatcher {
 
@@ -25,7 +24,7 @@ public class TemplateMatcher {
         return m;
     }
 
-    static final float[] SCALES = {0.7f, 0.85f, 1.0f, 1.2f};
+    static final float[] SCALES = {0.7f, 0.85f, 1.0f, 1.15f, 1.3f};
 
     /** Всегда возвращает лучшее совпадение (даже ниже порога) или null, если шаблон больше экрана. */
     public static Match findBest(Bitmap screen, Bitmap template) {
@@ -56,27 +55,19 @@ public class TemplateMatcher {
             r.recycle();
 
             short[] t = new short[nw * nh];
-            boolean[] mask = new boolean[nw * nh];
-            int maskCount = 0;
             for (int i = 0; i < tp.length; i++) {
                 int c = tp[i];
-                int a = (c >>> 24) & 0xff;
-                if (a > 25) {
-                    mask[i] = true;
-                    t[i] = (short)(((c >> 16) & 0xff) * 299 / 1000
-                                 + ((c >> 8) & 0xff) * 587 / 1000
-                                 + (c & 0xff) * 114 / 1000);
-                    maskCount++;
-                }
+                t[i] = (short)(((c >> 16) & 0xff) * 299 / 1000
+                             + ((c >> 8) & 0xff) * 587 / 1000
+                             + (c & 0xff) * 114 / 1000);
             }
-            if (maskCount < 8) continue; // degenerate template
 
             int scanStep = 2;
             float bestAt = -2f;
             int bsx = 0, bsy = 0;
             for (int y = 0; y + nh <= sh; y += scanStep) {
                 for (int x = 0; x + nw <= sw; x += scanStep) {
-                    float sc2 = corrMasked(lum, sw, t, mask, nw, nh, maskCount, x, y);
+                    float sc2 = corr(lum, sw, t, nw, nh, x, y);
                     if (sc2 > bestAt) { bestAt = sc2; bsx = x; bsy = y; }
                 }
             }
@@ -84,7 +75,7 @@ public class TemplateMatcher {
                 for (int dx = -2; dx <= 2; dx++) {
                     int x = bsx + dx, y = bsy + dy;
                     if (x < 0 || y < 0 || x + nw > sw || y + nh > sh) continue;
-                    float sc2 = corrMasked(lum, sw, t, mask, nw, nh, maskCount, x, y);
+                    float sc2 = corr(lum, sw, t, nw, nh, x, y);
                     if (sc2 > bestAt) { bestAt = sc2; bsx = x; bsy = y; }
                 }
             }
@@ -101,14 +92,13 @@ public class TemplateMatcher {
         return new Match(bestX, bestY, bestScore, bestNw, bestNh);
     }
 
-    // masked normalized cross-correlation (only non-transparent template pixels)
-    static float corrMasked(short[] lum, int sw, short[] t, boolean[] mask, int nw, int nh, int maskCount, int ox, int oy) {
+    // normalized cross-correlation (CCOEFF_NORMED) on luminance
+    static float corr(short[] lum, int sw, short[] t, int nw, int nh, int ox, int oy) {
         long sumT = 0, sumS = 0, sumTS = 0, sumTT = 0, sumSS = 0;
         for (int j = 0; j < nh; j++) {
             int sRow = (oy + j) * sw + ox;
             int tRow = j * nw;
             for (int i = 0; i < nw; i++) {
-                if (!mask[tRow + i]) continue;
                 int sv = lum[sRow + i];
                 int tv = t[tRow + i];
                 sumT += tv;
@@ -118,14 +108,13 @@ public class TemplateMatcher {
                 sumSS += (long) sv * sv;
             }
         }
-        int n = maskCount;
+        int n = nw * nh;
         float v1 = sumTS - (float)sumT * sumS / n;
         float d1 = (float)Math.sqrt(Math.max(0L, (long)sumTT - (float)sumT * sumT / n));
         float d2 = (float)Math.sqrt(Math.max(0L, (long)sumSS - (float)sumS * sumS / n));
-        if (d2 < 1e-3f) return -2f; // screen window is a flat region -> no signal
+        if (d2 < 1e-3f) return -2f;  // screen window flat -> no signal
         if (d1 < 1e-3f) {
-            // template is nearly uniform (e.g. plain monochrome icon): use non-centered correlation,
-            // but reject when the template itself is black (nothing to correlate with)
+            // template uniform -> match by non-centered correlation
             double normT = Math.sqrt(sumTT);
             if (normT < 1e-3) return -2f;
             return (float)(sumTS / (normT * d2));

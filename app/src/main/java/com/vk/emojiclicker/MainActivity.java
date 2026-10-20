@@ -340,7 +340,7 @@ public class MainActivity extends AppCompatActivity {
         settingsPanel.setPadding(dp(4), dp(4), dp(4), dp(4));
         settingsPanel.setBackgroundColor(0xFF2F2F2F);
 
-        sensInput = makeWideInput("50");
+        sensInput = makeWideInput("45");
         zoneY0Input = makeWideInput("30");
         zoneY1Input = makeWideInput("95");
         cdMinInput = makeWideInput("1.4");
@@ -706,7 +706,7 @@ public class MainActivity extends AppCompatActivity {
             if (v > 98) v = 98;
             return v / 100f;
         } catch (Exception e) {
-            return 0.55f;
+            return 0.45f;
         }
     }
 
@@ -806,7 +806,8 @@ public class MainActivity extends AppCompatActivity {
         return Bitmap.createBitmap(bmp, x0, y0, x1-x0, y1-y0);
     }
 
-    // render an emoji char into a transparent-background bitmap (used for default search)
+    // render an emoji char into a tight WHITE-background bitmap (matches PC behaviour;
+// the template must have a uniform background for plain CCOEFF matching)
     Bitmap renderEmoji(String emoji) {
         try {
             TextView tv = new TextView(this);
@@ -819,7 +820,7 @@ public class MainActivity extends AppCompatActivity {
             if (w <= 0 || h <= 0) return null;
             Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
             Canvas c = new Canvas(bmp);
-            // transparent background so the template matches emoji on any background
+            c.drawColor(Color.WHITE);
             tv.layout(0, 0, w, h);
             tv.draw(c);
             return trim(bmp);
