@@ -212,7 +212,11 @@ public class MainActivity extends AppCompatActivity {
                     Intent svc = new Intent(this, CaptureService.class);
                     svc.putExtra("resultCode", resultCode);
                     svc.putExtra("data", data);
-                    startForegroundService(svc);
+                    if (android.os.Build.VERSION.SDK_INT >= 26) {
+                        startForegroundService(svc);
+                    } else {
+                        startService(svc);
+                    }
                     Toast.makeText(this, "Захват экрана запускается…", Toast.LENGTH_LONG).show();
                 } catch (Exception e) {
                     Toast.makeText(this, "Ошибка запуска захвата: " + e.getMessage(), Toast.LENGTH_LONG).show();

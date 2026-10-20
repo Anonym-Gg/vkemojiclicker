@@ -30,16 +30,29 @@ public class CaptureService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        int resultCode = intent != null ? intent.getIntExtra("resultCode", 0) : 0;
-        Intent data = intent != null ? (android.content.Intent) intent.getParcelableExtra("data") : null;
-        startForegroundCompat();
-        if (capture == null) capture = new ScreenCapture();
-        boolean ok = data != null && capture.start(this, resultCode, data);
-        if (!ok) {
+        try {
+            int resultCode = intent != null ? intent.getIntExtra("resultCode", 0) : 0;
+            Intent data = null;
+            if (intent != null) {
+                if (android.os.Build.VERSION.SDK_INT >= 33) {
+                    data = intent.getParcelableExtra("data", Intent.class);
+                } else {
+                    data = intent.getParcelableExtra("data");
+                }
+            }
+            startForegroundCompat();
+            if (capture == null) capture = new ScreenCapture();
+            boolean ok = data != null && capture.start(this, resultCode, data);
+            if (!ok) {
+                stopSelf();
+                return START_NOT_STICKY;
+            }
+            return START_STICKY;
+        } catch (Throwable t) {
+            // never crash the app if the capture can't start
             stopSelf();
             return START_NOT_STICKY;
         }
-        return START_STICKY;
     }
 
     private void startForegroundCompat() {
@@ -53,9 +66,13 @@ public class CaptureService extends Service {
                 .setOngoing(true)
                 .build();
         try {
-            startForeground(NOTIF_ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION);
+            if (android.os.Build.VERSION.SDK_INT >= 29) {
+                startForeground(NOTIF_ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION);
+            } else {
+                startForeground(NOTIF_ID, n);
+            }
         } catch (Exception e) {
-            startForeground(NOTIF_ID, n);
+            try { startForeground(NOTIF_ID, n); } catch (Exception ignored) {}
         }
     }
 
