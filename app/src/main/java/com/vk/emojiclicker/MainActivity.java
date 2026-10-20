@@ -348,10 +348,14 @@ public class MainActivity extends AppCompatActivity {
                     return;
                 }
                 final float minScore = getSensitivity();
-                // priority first, then normal
-                if (tryFindAndTap(shot, priorityTemplate, "приоритет", minScore)) return;
-                if (tryFindAndTap(shot, normalTemplate, "не приоритет", minScore)) return;
-                handler.post(() -> Toast.makeText(this, "Ничего не найдено", Toast.LENGTH_SHORT).show());
+                // priority first, then normal; verbose toasts in manual mode
+                boolean found = findMatch(shot, priorityTemplate, "приоритет", minScore, true);
+                if (!found && normalTemplate != null) {
+                    found = findMatch(shot, normalTemplate, "не приоритет", minScore, true);
+                }
+                if (!found) {
+                    handler.post(() -> Toast.makeText(this, "Ничего не найдено", Toast.LENGTH_SHORT).show());
+                }
             }).start();
         });
     }
@@ -391,25 +395,26 @@ public class MainActivity extends AppCompatActivity {
         return Bitmap.createBitmap(shot, 0, y0, shot.getWidth(), y1-y0);
     }
 
-    // returns true if found & tapped; must be called on background thread
-    boolean tryFindAndTap(final Bitmap shot, final Bitmap tpl, final String label, float minScore) {
+    // returns true if found (then caller taps) / false if not found or too weak
+    boolean findMatch(final Bitmap shot, final Bitmap tpl, final String label, float minScore, final boolean verbose) {
         if (tpl == null) return false;
         Bitmap roi = cropZone(shot);
         if (roi == null) return false;
         TemplateMatcher.Match m = TemplateMatcher.findBest(roi, tpl);
         if (m == null) return false;
-        // convert back to full screenshot coords (zone is only a crop)
-        int absY = m.y + zoneOffsets[0];
         if (m.score < minScore) {
-            final float sc = m.score;
-            handler.post(() -> Toast.makeText(this, label + ": совпадение " + Math.round(sc*100) + "% (не кликнул)", Toast.LENGTH_SHORT).show());
+            if (verbose) {
+                final float sc = m.score;
+                handler.post(() -> Toast.makeText(this, label + ": " + Math.round(sc*100) + "% (слабовато)", Toast.LENGTH_SHORT).show());
+            }
             return false;
         }
+        // convert back to full screenshot coords, tap slightly below center (PC parity)
+        final int absY = m.y + zoneOffsets[0];
         final int tapY = absY + (int)(m.templateH * 0.55f);
-        final int tapX = m.x;
         handler.post(() -> {
-            cursorOverlay.showAt(tapX, tapY);
-            tapAt(tapX, tapY);
+            cursorOverlay.showAt(m.x, tapY);
+            tapAt(m.x, tapY);
             Toast.makeText(this, "Кликнул: " + label + " (" + Math.round(m.score*100) + "%)", Toast.LENGTH_SHORT).show();
         });
         return true;
@@ -430,23 +435,22 @@ public class MainActivity extends AppCompatActivity {
 
     void runSearchLoop() {
         if (!autoLoop) return;
+        // one shot per iteration: priority first, then normal; if neither - quick retry
         handler.post(() -> {
             final Bitmap shot = captureWebView();
             new Thread(() -> {
+                final float minScore = getSensitivity();
+                boolean verbose = false; // no spam in auto mode
+                boolean found = false;
                 if (shot != null) {
-                    final float minScore = getSensitivity();
-                    // priority first
-                    if (tryFindAndTap(shot, priorityTemplate, "приоритет", minScore)) {
-                        handler.postDelayed(this::runSearchLoop, currentCdDelay());
-                        return;
-                    }
-                    // then normal
-                    if (tryFindAndTap(shot, normalTemplate, "не приоритет", minScore)) {
-                        handler.postDelayed(this::runSearchLoop, currentCdDelay());
-                        return;
+                    if (findMatch(shot, priorityTemplate, "приоритет", minScore, verbose)) {
+                        found = true;
+                    } else if (findMatch(shot, normalTemplate, "не приоритет", minScore, verbose)) {
+                        found = true;
                     }
                 }
-                handler.postDelayed(this::runSearchLoop, currentCdDelay());
+                int delay = found ? currentCdDelay() : 500; // fast rescan when nothing found
+                handler.postDelayed(this::runSearchLoop, delay);
             }).start();
         });
     }

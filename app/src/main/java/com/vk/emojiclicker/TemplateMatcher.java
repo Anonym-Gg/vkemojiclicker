@@ -3,9 +3,9 @@ package com.vk.emojiclicker;
 import android.graphics.Bitmap;
 
 /**
- * Простой шаблонный матчинг по пикселям (без OpenCV).
- * Ищет шаблон (иконку эмодзи) на скриншоте и возвращает центр лучшего совпадения.
- * Использует среднюю абсолютную разницу цвета (маленькая = лучше) на нескольких масштабах.
+ * Быстрый шаблонный матчинг по пикселям (без OpenCV).
+ * Подвыбирает пиксели (ускорение), ищет на нескольких масштабах.
+ * Сначала грубый проход, потом уточнение вокруг лучшего места.
  */
 public class TemplateMatcher {
 
@@ -15,10 +15,6 @@ public class TemplateMatcher {
         public int templateW, templateH; // размер найденного шаблона
         Match(int x, int y, float s) { this.x = x; this.y = y; this.score = s; }
         Match(int x, int y, float s, int tw, int th) { this.x = x; this.y = y; this.score = s; this.templateW = tw; this.templateH = th; }
-    }
-
-    public static Bitmap toBitmap(int[] argb, int width, int height) {
-        return Bitmap.createBitmap(argb, width, height, Bitmap.Config.ARGB_8888);
     }
 
     /** Находит лучший центр шаблона на кадре. Returns null если совпадение ниже threshold. */
@@ -40,48 +36,80 @@ public class TemplateMatcher {
         float bestScore = -1f;
         int bestX = 0, bestY = 0, bestNw = 0, bestNh = 0;
 
-        // несколько масштабов шаблона
-        float[] scales = {1.0f, 0.9f, 0.8f, 0.7f, 1.1f, 1.2f, 1.3f, 0.6f, 1.4f};
+        // меньше масштабов, но крупнее шаг по позиции
+        float[] scales = {1.0f, 0.8f, 1.25f, 0.6f};
         for (float sc : scales) {
-            int nw = Math.max(2, (int)(tw * sc));
-            int nh = Math.max(2, (int)(th * sc));
+            int nw = Math.max(4, (int)(tw * sc));
+            int nh = Math.max(4, (int)(th * sc));
             if (nw >= sw || nh >= sh) continue;
             Bitmap r = Bitmap.createScaledBitmap(template, nw, nh, true);
             int[] t = new int[nw * nh];
             r.getPixels(t, 0, nw, 0, 0, nw, nh);
             r.recycle();
 
-            for (int y = 0; y + nh <= sh; y += 2) {
-                for (int x = 0; x + nw <= sw; x += 2) {
-                    float diff = 0f;
-                    int cnt = 0;
-                    for (int j = 0; j < nh; j++) {
-                        int sRow = (y + j) * sw + x;
-                        int tRow = j * nw;
-                        for (int i = 0; i < nw; i++) {
-                            int sp = s[sRow + i];
-                            int tp = t[tRow + i];
-                            long dr = Math.abs(((sp >> 16) & 0xff) - ((tp >> 16) & 0xff));
-                            long dg = Math.abs(((sp >> 8) & 0xff) - ((tp >> 8) & 0xff));
-                            long db = Math.abs((sp & 0xff) - (tp & 0xff));
-                            diff += dr + dg + db;
-                            cnt++;
-                        }
-                    }
-                    if (cnt == 0) continue;
-                    float avg = diff / cnt;              // 0..765
-                    float score = 1f - avg / 765f;       // 0..1
-                    if (score > bestScore) {
-                        bestScore = score;
-                        bestX = x + nw / 2;
-                        bestY = y + nh / 2;
-                        bestNw = nw;
-                        bestNh = nh;
+            // подвыборка пикселей (ускорение): смотрим каждый 2-й по x и y
+            int step = 2;
+            int nw2 = (nw + step - 1) / step;
+            int nh2 = (nh + step - 1) / step;
+
+            // грубый проход (шаг по экрану 4), затем уточнение вокруг лучшего
+            int scanStep = 4;
+            float bestAtScale = -1f;
+            int bsx = 0, bsy = 0;
+            for (int y = 0; y + nh <= sh; y += scanStep) {
+                for (int x = 0; x + nw <= sw; x += scanStep) {
+                    float sc2 = scoreAt(s, sw, t, nw, nh, nw2, nh2, step, x, y);
+                    if (sc2 > bestAtScale) {
+                        bestAtScale = sc2;
+                        bsx = x; bsy = y;
                     }
                 }
+            }
+            // уточнение: пробуем соседние смещения с шагом 1
+            for (int dy = -4; dy <= 4; dy++) {
+                for (int dx = -4; dx <= 4; dx++) {
+                    int x = bsx + 2*dx;
+                    int y = bsy + 2*dy;
+                    if (x < 0 || y < 0 || x + nw > sw || y + nh > sh) continue;
+                    float sc2 = scoreAt(s, sw, t, nw, nh, nw2, nh2, step, x, y);
+                    if (sc2 > bestAtScale) {
+                        bestAtScale = sc2;
+                        bsx = x; bsy = y;
+                    }
+                }
+            }
+            if (bestAtScale > bestScore) {
+                bestScore = bestAtScale;
+                bestX = bsx + nw / 2;
+                bestY = bsy + nh / 2;
+                bestNw = nw;
+                bestNh = nh;
             }
         }
         if (bestScore < 0f) return null;
         return new Match(bestX, bestY, bestScore, bestNw, bestNh);
+    }
+
+    // avg abs color diff on a pixel subsample -> score 0..1
+    static float scoreAt(int[] s, int sw, int[] t, int nw, int nh, int nw2, int nh2, int step, int ox, int oy) {
+        float diff = 0f;
+        int cnt = 0;
+        for (int j = 0; j < nh2; j++) {
+            int sy = oy + j * step;
+            int sRow = sy * sw + ox;
+            int tRow = j * step * nw;
+            for (int i = 0; i < nw2; i++) {
+                int si = sRow + i * step;
+                int ti = tRow + i * step;
+                int sp = s[si];
+                int tp = t[ti];
+                diff += Math.abs(((sp >> 16) & 0xff) - ((tp >> 16) & 0xff))
+                      + Math.abs(((sp >> 8) & 0xff) - ((tp >> 8) & 0xff))
+                      + Math.abs((sp & 0xff) - (tp & 0xff));
+                cnt++;
+            }
+        }
+        if (cnt == 0) return 0f;
+        return 1f - (diff / cnt) / 765f;
     }
 }
