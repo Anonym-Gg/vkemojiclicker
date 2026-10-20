@@ -1,6 +1,8 @@
 package com.vk.emojiclicker;
 
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
@@ -73,10 +75,14 @@ public class MainActivity extends AppCompatActivity {
     EditText cdMinInput;       // seconds, default 1.4
     EditText cdMaxInput;       // seconds, default 1.9
 
+    SharedPreferences prefs;   // persistent settings & license key across updates
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        prefs = getSharedPreferences("vk_emoji_pro", MODE_PRIVATE);
 
         licenseLayout = findViewById(R.id.licenseLayout);
         // licenseLayout is root LinearLayout in activity_main (which we reuse)
@@ -84,7 +90,33 @@ public class MainActivity extends AppCompatActivity {
         activateBtn = findViewById(R.id.activateBtn);
         statusText = findViewById(R.id.statusText);
 
+        // restore previously entered key so user does not retype after updates
+        String savedKey = prefs.getString("key", "");
+        if (!savedKey.isEmpty()) {
+            keyInput.setText(savedKey);
+        }
+
         activateBtn.setOnClickListener(v -> tryActivate());
+
+        // if we already have an activated key on this device, skip the gate
+        if (!prefs.getString("key", "").isEmpty() && prefs.getBoolean("activated", false)) {
+            statusText.setText("Ключ сохранён. Проверка...");
+            activateBtn.setEnabled(false);
+            new Thread(() -> {
+                JSONObject res = LicenseClient.activate(this, prefs.getString("key", ""));
+                boolean ok = res != null && res.optBoolean("ok", false);
+                handler.post(() -> {
+                    activateBtn.setEnabled(true);
+                    if (ok) {
+                        statusText.setText("Успех! Запуск...");
+                        handler.postDelayed(this::buildMainUI, 600);
+                    } else {
+                        statusText.setText("Ключ больше не действителен — введи заново");
+                        prefs.edit().remove("key").remove("activated").apply();
+                    }
+                });
+            }).start();
+        }
     }
 
     void tryActivate() {
@@ -102,6 +134,7 @@ public class MainActivity extends AppCompatActivity {
             handler.post(() -> {
                 activateBtn.setEnabled(true);
                 if (ok) {
+                    prefs.edit().putString("key", key).putBoolean("activated", true).apply();
                     statusText.setText("Успех! Запуск...");
                     handler.postDelayed(this::buildMainUI, 600);
                 } else {
@@ -278,6 +311,8 @@ public class MainActivity extends AppCompatActivity {
         zoneY1Input = makeWideInput("88");
         cdMinInput = makeWideInput("1.4");
         cdMaxInput = makeWideInput("1.9");
+        // restore persisted settings (kept across app updates)
+        loadSettings();
 
         settingsPanel.addView(makeSettingsRow("Чувствительность", sensInput));
         settingsPanel.addView(makeSettingsRow("Зона от %", zoneY0Input, zoneY1Input));
@@ -299,8 +334,11 @@ public class MainActivity extends AppCompatActivity {
                 defaultPriorityTemplate = null;
                 defaultNormalTemplate = null;
             }
+            saveSettings();
         });
         settingsPanel.addView(defaultCb);
+        // reflect the saved "поиск по умолчанию" state (triggers render of default templates)
+        defaultCb.setChecked(useDefaultSearch);
 
         // buttons: Search once / Auto / Stop
         LinearLayout btns = new LinearLayout(this);
@@ -708,6 +746,32 @@ public class MainActivity extends AppCompatActivity {
 
     int dp(int v) {
         return Math.round(getResources().getDisplayMetrics().density * v);
+    }
+
+    void saveSettings() {
+        SharedPreferences.Editor e = prefs.edit();
+        try { e.putString("sens", sensInput.getText().toString().trim());
+              e.putString("zone0", zoneY0Input.getText().toString().trim());
+              e.putString("zone1", zoneY1Input.getText().toString().trim());
+              e.putString("cdMin", cdMinInput.getText().toString().trim());
+              e.putString("cdMax", cdMaxInput.getText().toString().trim()); } catch (Exception ignored) {}
+        e.putBoolean("useDefault", useDefaultSearch);
+        e.apply();
+    }
+
+    void loadSettings() {
+        sensInput.setText(prefs.getString("sens", "55"));
+        zoneY0Input.setText(prefs.getString("zone0", "58"));
+        zoneY1Input.setText(prefs.getString("zone1", "88"));
+        cdMinInput.setText(prefs.getString("cdMin", "1.4"));
+        cdMaxInput.setText(prefs.getString("cdMax", "1.9"));
+        useDefaultSearch = prefs.getBoolean("useDefault", false);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (sensInput != null) saveSettings();
     }
 
     @Override
