@@ -1,11 +1,11 @@
 package com.vk.emojiclicker;
 
+import android.content.Intent;
 import android.graphics.Bitmap;
-import android.graphics.Canvas;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
-import android.graphics.Paint;
-import android.graphics.Rect;
 import android.graphics.Typeface;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -27,8 +27,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import org.json.JSONObject;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.io.InputStream;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -47,20 +46,16 @@ public class MainActivity extends AppCompatActivity {
     ScrollView emojiPicker;
     Handler handler = new Handler(Looper.getMainLooper());
 
-    String[] priorityEmojis = {
-            "⚔️","😀","😂","😍","😘","😎","🤔","😅","😭","🤣",
-            "😉","👍","👎","🙏","👏","💪","🤝","❤️","💕","💯"
-    };
-
-    String[] normalEmojis = {
-            "🔥","⭐","🎉","🥰","😊","🤷","🙄","💀","👀","😱","🥺",
-            "✅","❌","💋","🤡","👌","✌️","🤟","🖤","💔","😴","😡"
-    };
-
     String currentEmoji = "⚔️";
     boolean autoLoop = false;
-    String[] autoList = priorityEmojis;
-    int autoIndex = 0;
+
+    // Attached photo templates (from gallery), priority & normal
+    Bitmap priorityTemplate = null;
+    Bitmap normalTemplate = null;
+    static final int PICK_PRIORITY = 1001;
+    static final int PICK_NORMAL = 1002;
+    TextView priorityFileTv = null;
+    TextView normalFileTv = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -100,44 +95,93 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
 
-    void addSectionHeader(LinearLayout parent, String text) {
-        TextView header = new TextView(this);
-        header.setText(text);
-        header.setTextSize(12);
-        header.setTypeface(Typeface.DEFAULT_BOLD);
-        header.setTextColor(0xFF9E9E9E);
+    void addPhotoPanel(LinearLayout parent, String label, final int requestCode, final boolean priority) {
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(dp(4), dp(4), dp(4), dp(4));
+        panel.setBackgroundColor(0xFF333333);
+
+        TextView title = new TextView(this);
+        title.setText(label);
+        title.setTextSize(12);
+        title.setTypeface(Typeface.DEFAULT_BOLD);
+        title.setTextColor(0xFFFFFFFF);
+        title.setPadding(dp(4), 0, 0, 0);
+        panel.addView(title);
+
+        final TextView fileName = new TextView(this);
+        fileName.setText("Фото не выбрано");
+        fileName.setTextSize(11);
+        fileName.setTextColor(0xFFAAAAAA);
+        fileName.setPadding(dp(4), dp(2), 0, dp(2));
+        panel.addView(fileName);
+
+        if (priority) priorityFileTv = fileName;
+        else normalFileTv = fileName;
+
+        Button pickBtn = new Button(this);
+        pickBtn.setText("Прикрепить фото");
+        pickBtn.setTextSize(12);
+        pickBtn.setAllCaps(false);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(28));
-        lp.topMargin = dp(4);
-        header.setLayoutParams(lp);
-        header.setGravity(Gravity.CENTER_VERTICAL);
-        header.setPadding(dp(4), 0, 0, 0);
-        parent.addView(header);
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(38));
+        pickBtn.setLayoutParams(lp);
+        pickBtn.setOnClickListener(v -> pickPhoto(requestCode));
+        panel.addView(pickBtn);
+
+        parent.addView(panel);
     }
 
-    void addEmojiGridRow(LinearLayout parent, String[] list) {
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        for (String emoji : list) {
-            Button b = new Button(this);
-            b.setText(emoji);
-            b.setTextSize(20);
-            b.setMinHeight(dp(48));
-            b.setMinWidth(dp(48));
-            b.setPadding(0, 0, 0, 0);
-            b.setBackgroundColor(0xFF3A3A3A);
-            b.setTextColor(Color.WHITE);
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                    dp(48), dp(48));
-            b.setLayoutParams(lp);
-            b.setOnClickListener(view -> {
-                currentEmoji = ((Button) view).getText().toString();
-                if (autoLoop) runSearchLoop();
-                else runSearchOnce();
-            });
-            row.addView(b);
+    void pickPhoto(int requestCode) {
+        Intent i = new Intent(Intent.ACTION_PICK);
+        i.setType("image/*");
+        try {
+            startActivityForResult(i, requestCode);
+        } catch (Exception e) {
+            Toast.makeText(this, "Нет галереи: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
-        parent.addView(row);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (resultCode != RESULT_OK || data == null || data.getData() == null) return;
+        Uri uri = data.getData();
+        Bitmap bmp = null;
+        try {
+            BitmapFactory.Options o = new BitmapFactory.Options();
+            o.inJustDecodeBounds = true;
+            InputStream is = getContentResolver().openInputStream(uri);
+            BitmapFactory.decodeStream(is, null, o);
+            if (is != null) is.close();
+            int sample = 1;
+            while (o.outWidth / sample > 400 || o.outHeight / sample > 400) sample *= 2;
+            if (sample < 1) sample = 1;
+            BitmapFactory.Options o2 = new BitmapFactory.Options();
+            o2.inSampleSize = sample;
+            InputStream is2 = getContentResolver().openInputStream(uri);
+            bmp = BitmapFactory.decodeStream(is2, null, o2);
+            if (is2 != null) is2.close();
+        } catch (Exception e) {
+            Toast.makeText(this, "Не удалось открыть фото", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (bmp == null) {
+            Toast.makeText(this, "Фото не прочитано", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        bmp = trim(bmp);
+        if (requestCode == PICK_PRIORITY) {
+            priorityTemplate = bmp;
+            currentEmoji = "[приоритет]";
+            if (priorityFileTv != null)
+                priorityFileTv.setText("Фото прикреплено ✓ (" + bmp.getWidth() + "x" + bmp.getHeight() + ")");
+        } else if (requestCode == PICK_NORMAL) {
+            normalTemplate = bmp;
+            if (normalFileTv != null)
+                normalFileTv.setText("Фото прикреплено ✓ (" + bmp.getWidth() + "x" + bmp.getHeight() + ")");
+        }
+        Toast.makeText(this, "Фото прикреплено", Toast.LENGTH_SHORT).show();
     }
 
     void buildMainUI() {
@@ -153,19 +197,17 @@ public class MainActivity extends AppCompatActivity {
         toolbar.setPadding(dp(8), dp(4), dp(8), dp(4));
         toolbar.setBackgroundColor(0xFF2B2B2B);
 
-        // emoji picker: priority section + normal section
+        // photo picker panels: priority & normal
         emojiPicker = new ScrollView(this);
         emojiPicker.setLayoutParams(new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(180)));
-        LinearLayout gridWrap = new LinearLayout(this);
-        gridWrap.setOrientation(LinearLayout.VERTICAL);
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(170)));
+        LinearLayout pickerWrap = new LinearLayout(this);
+        pickerWrap.setOrientation(LinearLayout.VERTICAL);
 
-        addSectionHeader(gridWrap, "ПРИОРИТЕТ");
-        addEmojiGridRow(gridWrap, priorityEmojis);
-        addSectionHeader(gridWrap, "НЕ ПРИОРИТЕТ");
-        addEmojiGridRow(gridWrap, normalEmojis);
+        addPhotoPanel(pickerWrap, "ПРИОРИТЕТ (прикрепи фото эмодзи)", PICK_PRIORITY, true);
+        addPhotoPanel(pickerWrap, "НЕ ПРИОРИТЕТ (прикрепи фото эмодзи)", PICK_NORMAL, false);
 
-        emojiPicker.addView(gridWrap);
+        emojiPicker.addView(pickerWrap);
 
         // buttons: Search once / Auto / Stop
         LinearLayout btns = new LinearLayout(this);
@@ -177,12 +219,12 @@ public class MainActivity extends AppCompatActivity {
         autoBtn.setText("Авто");
         autoBtn.setOnClickListener(v -> {
             if (!autoLoop) {
-                // start: iterate priority first, then normal
+                if (priorityTemplate == null && normalTemplate == null) {
+                    Toast.makeText(this, "Сначала прикрепи фото эмодзи", Toast.LENGTH_LONG).show();
+                    return;
+                }
                 autoLoop = true;
-                autoList = priorityEmojis;
-                autoIndex = 0;
-                currentEmoji = autoList[0];
-                Toast.makeText(this, "Авто: приоритетные → обычные", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Авто: приоритет → не приоритет", Toast.LENGTH_SHORT).show();
                 runSearchLoop();
             } else {
                 autoLoop = false;
@@ -228,93 +270,68 @@ public class MainActivity extends AppCompatActivity {
     }
 
     void runSearchOnce() {
+        if (priorityTemplate == null && normalTemplate == null) {
+            Toast.makeText(this, "Сначала прикрепи фото эмодзи", Toast.LENGTH_LONG).show();
+            return;
+        }
         new Thread(() -> {
-            Bitmap tpl = renderEmoji(currentEmoji);
             Bitmap shot = captureWebView();
-            if (tpl == null || shot == null) {
-                handler.post(() -> Toast.makeText(this, "Не удалось сделать поиск", Toast.LENGTH_SHORT).show());
+            if (shot == null) {
+                handler.post(() -> Toast.makeText(this, "Не удалось сделать скриншот", Toast.LENGTH_SHORT).show());
                 return;
             }
-            TemplateMatcher.Match m = TemplateMatcher.find(shot, tpl, 0.6);
-            handler.post(() -> {
-                if (m == null) {
-                    Toast.makeText(this, "Не найдено: " + currentEmoji, Toast.LENGTH_SHORT).show();
-                } else {
-                    cursorOverlay.showAt(m.x, m.y);
-                    tapAt(m.x, m.y);
-                    Toast.makeText(this, "Кликнул: " + currentEmoji + " (" + Math.round(m.score*100) + "%)", Toast.LENGTH_SHORT).show();
-                }
-            });
+            // priority first, then normal
+            if (tryFindAndTap(shot, priorityTemplate, "приоритет")) return;
+            if (tryFindAndTap(shot, normalTemplate, "не приоритет")) return;
+            handler.post(() -> Toast.makeText(this, "Ничего не найдено", Toast.LENGTH_SHORT).show());
         }).start();
+    }
+
+    // returns true if found & tapped; must be called on background thread
+    boolean tryFindAndTap(final Bitmap shot, final Bitmap tpl, final String label) {
+        if (tpl == null) return false;
+        TemplateMatcher.Match m = TemplateMatcher.find(shot, tpl, 0.6);
+        if (m == null) return false;
+        handler.post(() -> {
+            cursorOverlay.showAt(m.x, m.y);
+            tapAt(m.x, m.y);
+            Toast.makeText(this, "Кликнул: " + label + " (" + Math.round(m.score*100) + "%)", Toast.LENGTH_SHORT).show();
+        });
+        return true;
     }
 
     void runSearchLoop() {
         if (!autoLoop) return;
-        final String emoji = autoList[autoIndex];
-        currentEmoji = emoji;
         new Thread(() -> {
-            Bitmap tpl = renderEmoji(emoji);
             Bitmap shot = captureWebView();
-            if (tpl != null && shot != null) {
-                TemplateMatcher.Match m = TemplateMatcher.find(shot, tpl, 0.6);
-                if (m != null) {
-                    final TemplateMatcher.Match fm = m;
-                    handler.post(() -> {
-                        cursorOverlay.showAt(fm.x, fm.y);
-                        tapAt(fm.x, fm.y);
-                        Toast.makeText(this, "Кликнул: " + emoji, Toast.LENGTH_SHORT).show();
-                    });
+            if (shot != null) {
+                // priority first
+                if (tryFindAndTap(shot, priorityTemplate, "приоритет")) {
+                    handler.postDelayed(this::runSearchLoop, 1200);
+                    return;
+                }
+                // then normal
+                if (tryFindAndTap(shot, normalTemplate, "не приоритет")) {
+                    handler.postDelayed(this::runSearchLoop, 1200);
+                    return;
                 }
             }
-            // advance to next emoji; when priority list is done, switch to normal; wrap around
-            handler.postDelayed(() -> {
-                autoIndex++;
-                if (autoIndex >= autoList.length) {
-                    if (autoList == priorityEmojis) {
-                        autoList = normalEmojis;
-                        autoIndex = 0;
-                    } else {
-                        autoList = priorityEmojis;
-                        autoIndex = 0;
-                    }
-                }
-                runSearchLoop();
-            }, 1200);
+            handler.postDelayed(this::runSearchLoop, 1200);
         }).start();
     }
 
-    Bitmap renderEmoji(String emoji) {
-        try {
-            TextView tv = new TextView(this);
-            tv.setText(emoji);
-            tv.setTextSize(48);
-            tv.setTypeface(Typeface.DEFAULT);
-            tv.measure(View.MeasureSpec.makeMeasureSpec(200, View.MeasureSpec.EXACTLY),
-                    View.MeasureSpec.makeMeasureSpec(200, View.MeasureSpec.EXACTLY));
-            int w = tv.getMeasuredWidth(), h = tv.getMeasuredHeight();
-            if (w <= 0 || h <= 0) return null;
-            Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
-            Canvas c = new Canvas(bmp);
-            c.drawColor(Color.WHITE);
-            tv.layout(0, 0, w, h);
-            tv.draw(c);
-            return trim(bmp);
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
     Bitmap trim(Bitmap bmp) {
-        // find white bounds and crop with small margin
+        // find bounds of non-background pixels and crop
         int w = bmp.getWidth(), h = bmp.getHeight();
         int[] p = new int[w*h];
         bmp.getPixels(p, 0, w, 0, 0, w, h);
         int minX=w, minY=h, maxX=-1, maxY=-1;
         for (int y=0; y<h; y++) for (int x=0; x<w; x++) {
             int c = p[y*w+x];
+            int a = (c>>>24) & 0xff;
             int r=(c>>16)&0xff,g=(c>>8)&0xff,b=c&0xff;
-            // non-white pixel
-            if (r<240 || g<240 || b<240) {
+            boolean background = (a < 16) || (a > 240 && r > 240 && g > 240 && b > 240);
+            if (!background) {
                 if(x<minX)minX=x; if(x>maxX)maxX=x;
                 if(y<minY)minY=y; if(y>maxY)maxY=y;
             }
@@ -323,6 +340,7 @@ public class MainActivity extends AppCompatActivity {
         int pad=6;
         int x0=Math.max(0,minX-pad), y0=Math.max(0,minY-pad);
         int x1=Math.min(w,maxX+pad), y1=Math.min(h,maxY+pad);
+        if (x1 - x0 < 8 || y1 - y0 < 8) return bmp; // too small -> keep original
         return Bitmap.createBitmap(bmp, x0, y0, x1-x0, y1-y0);
     }
 
