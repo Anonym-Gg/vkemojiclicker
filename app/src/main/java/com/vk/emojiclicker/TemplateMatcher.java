@@ -128,7 +128,7 @@ public class TemplateMatcher {
             // but reject when the template itself is black (nothing to correlate with)
             double normT = Math.sqrt(sumTT);
             if (normT < 1e-3) return -2f;
-            return (float)sumTS / (normT * d2);
+            return (float)(sumTS / (normT * d2));
         }
         return v1 / (d1 * d2);
     }
