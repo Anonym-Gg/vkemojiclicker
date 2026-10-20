@@ -162,8 +162,8 @@ public class MainActivity extends AppCompatActivity {
 
         // WebView fills the rest
         webView = new WebView(this);
-        FrameLayout.LayoutParams wlp = new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(0), 1f);
+        LinearLayout.LayoutParams wlp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
         webView.setLayoutParams(wlp);
         WebSettings ws = webView.getSettings();
         ws.setJavaScriptEnabled(true);
