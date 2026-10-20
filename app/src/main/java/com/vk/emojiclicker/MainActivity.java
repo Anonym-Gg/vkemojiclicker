@@ -49,6 +49,11 @@ public class MainActivity extends AppCompatActivity {
     Handler handler = new Handler(Looper.getMainLooper());
 
     boolean autoLoop = false;
+    boolean useDefaultSearch = false; // when true: search built-in ⚔️ (priority) and 🎁 (normal)
+
+    // Built-in default templates (rendered), used when "Поиск по умолчанию" is on
+    Bitmap defaultPriorityTemplate = null; // ⚔️
+    Bitmap defaultNormalTemplate = null;   // 🎁
 
     // Attached photo templates (from gallery), priority & normal
     Bitmap priorityTemplate = null;
@@ -275,6 +280,25 @@ public class MainActivity extends AppCompatActivity {
         settingsPanel.addView(makeSettingsRow("Зона от %", zoneY0Input, zoneY1Input));
         settingsPanel.addView(makeSettingsRow("КД сек", cdMinInput, cdMaxInput));
 
+        // "Поиск по умолчанию" checkbox: search built-in ⚔️ (priority) and 🎁 (normal)
+        CheckBox defaultCb = new CheckBox(this);
+        defaultCb.setText("Поиск по умолчанию (⚔️ → 🎁)");
+        defaultCb.setTextColor(Color.WHITE);
+        defaultCb.setTextSize(14);
+        defaultCb.setChecked(false);
+        defaultCb.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            useDefaultSearch = isChecked;
+            if (isChecked) {
+                defaultPriorityTemplate = renderEmoji("⚔️");
+                defaultNormalTemplate = renderEmoji("🎁");
+                Toast.makeText(this, "Поиск по умолчанию: ⚔️ приоритет, 🎁 не приоритет", Toast.LENGTH_SHORT).show();
+            } else {
+                defaultPriorityTemplate = null;
+                defaultNormalTemplate = null;
+            }
+        });
+        settingsPanel.addView(defaultCb);
+
         // buttons: Search once / Auto / Stop
         LinearLayout btns = new LinearLayout(this);
         btns.setOrientation(LinearLayout.HORIZONTAL);
@@ -333,8 +357,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     void startAction() {
-        if (priorityTemplate == null && normalTemplate == null) {
-            Toast.makeText(this, "Сначала прикрепи фото эмодзи", Toast.LENGTH_LONG).show();
+        boolean hasTemplate = getPriorityTemplate() != null || getNormalTemplate() != null;
+        if (!hasTemplate) {
+            Toast.makeText(this, "Сначала включи «Поиск по умолчанию» или прикрепи фото эмодзи", Toast.LENGTH_LONG).show();
             return;
         }
         if (autoLoop) {
@@ -359,9 +384,9 @@ public class MainActivity extends AppCompatActivity {
                 }
                 Bitmap roi = cropZone(shot);
                 int offset = roi != null ? zoneOffsets[0] : 0;
-                boolean found = findMatch(roi, priorityTemplate, "приоритет", getSensitivity(), true, offset);
-                if (!found && normalTemplate != null) {
-                    found = findMatch(roi, normalTemplate, "не приоритет", getSensitivity(), true, offset);
+                boolean found = findMatch(roi, getPriorityTemplate(), "приоритет", getSensitivity(), true, offset);
+                if (!found && getNormalTemplate() != null) {
+                    found = findMatch(roi, getNormalTemplate(), "не приоритет", getSensitivity(), true, offset);
                 }
                 if (!found) {
                     handler.post(() -> Toast.makeText(this, "Ничего не найдено", Toast.LENGTH_SHORT).show());
@@ -387,9 +412,9 @@ public class MainActivity extends AppCompatActivity {
                     Bitmap roi = cropZone(holder[0]);
                     int offset = roi != null ? zoneOffsets[0] : 0;
                     final float minScore = getSensitivity();
-                    boolean found = findMatch(roi, priorityTemplate, "приоритет", minScore, false, offset);
-                    if (!found && normalTemplate != null) {
-                        found = findMatch(roi, normalTemplate, "не приоритет", minScore, false, offset);
+                    boolean found = findMatch(roi, getPriorityTemplate(), "приоритет", minScore, false, offset);
+                    if (!found && getNormalTemplate() != null) {
+                        found = findMatch(roi, getNormalTemplate(), "не приоритет", minScore, false, offset);
                     }
                 }
                 // always wait CD between iterations
@@ -478,6 +503,14 @@ public class MainActivity extends AppCompatActivity {
 
     // returns true if found (then caller taps) / false if not found or too weak
     // roi is the zone strip (already cropped), zoneOffset is its top offset in the full screenshot
+    Bitmap getPriorityTemplate() {
+        return useDefaultSearch ? defaultPriorityTemplate : priorityTemplate;
+    }
+
+    Bitmap getNormalTemplate() {
+        return useDefaultSearch ? defaultNormalTemplate : normalTemplate;
+    }
+
     boolean findMatch(final Bitmap roi, final Bitmap tpl, final String label, float minScore, final boolean verbose, int zoneOffset) {
         if (tpl == null) return false;
         if (roi == null) return false;
@@ -536,6 +569,28 @@ public class MainActivity extends AppCompatActivity {
         int x1=Math.min(w,maxX+pad), y1=Math.min(h,maxY+pad);
         if (x1 - x0 < 8 || y1 - y0 < 8) return bmp; // too small -> keep original
         return Bitmap.createBitmap(bmp, x0, y0, x1-x0, y1-y0);
+    }
+
+    // render an emoji char into a tight white-background bitmap (used for default search)
+    Bitmap renderEmoji(String emoji) {
+        try {
+            TextView tv = new TextView(this);
+            tv.setText(emoji);
+            tv.setTextSize(48);
+            tv.setTypeface(Typeface.DEFAULT);
+            tv.measure(View.MeasureSpec.makeMeasureSpec(200, View.MeasureSpec.EXACTLY),
+                    View.MeasureSpec.makeMeasureSpec(200, View.MeasureSpec.EXACTLY));
+            int w = tv.getMeasuredWidth(), h = tv.getMeasuredHeight();
+            if (w <= 0 || h <= 0) return null;
+            Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+            Canvas c = new Canvas(bmp);
+            c.drawColor(Color.WHITE);
+            tv.layout(0, 0, w, h);
+            tv.draw(c);
+            return trim(bmp);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     Bitmap captureWebView() {
