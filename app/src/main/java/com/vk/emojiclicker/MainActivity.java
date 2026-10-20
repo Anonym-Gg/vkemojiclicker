@@ -408,18 +408,21 @@ public class MainActivity extends AppCompatActivity {
                         startMarginLeft = lp.leftMargin;
                         startMarginBottom = lp.bottomMargin;
                         moved = false;
-                        return true;
+                        return false; // don't consume, so a simple tap can become a click
                     case android.view.MotionEvent.ACTION_MOVE:
                         float dx = event.getRawX() - startX;
                         float dy = event.getRawY() - startY;
                         if (Math.abs(dx) > 6 || Math.abs(dy) > 6) moved = true;
-                        FrameLayout.LayoutParams lp2 = (FrameLayout.LayoutParams) v.getLayoutParams();
-                        lp2.leftMargin = startMarginLeft + (int) dx;
-                        lp2.bottomMargin = startMarginBottom - (int) dy;
-                        v.setLayoutParams(lp2);
-                        return true;
+                        if (moved) {
+                            FrameLayout.LayoutParams lp2 = (FrameLayout.LayoutParams) v.getLayoutParams();
+                            lp2.leftMargin = startMarginLeft + (int) dx;
+                            lp2.bottomMargin = startMarginBottom - (int) dy;
+                            v.setLayoutParams(lp2);
+                            return true; // actively dragging -> consume, suppress click
+                        }
+                        return false; // still a tap so far
                     case android.view.MotionEvent.ACTION_UP:
-                        return moved; // if moved, consume; else let onClick fire
+                        return moved; // if dragged, consume so no click; if tapped, false -> click fires
                 }
                 return false;
             }
