@@ -524,6 +524,7 @@ public class MainActivity extends AppCompatActivity {
         if (bmp == null) return true;
         int w = Math.min(bmp.getWidth(), 64);
         int h = Math.min(bmp.getHeight(), 64);
+        if (w <= 0 || h <= 0) return true;
         int[] p = new int[w * h];
         bmp.getPixels(p, 0, w, 0, 0, w, h);
         int nonUniform = 0;
@@ -664,26 +665,34 @@ public class MainActivity extends AppCompatActivity {
     }
 
     Bitmap captureWebView() {
+        int prevLayer = 0;
         try {
             int w = webView.getWidth();
             int h = webView.getHeight();
             if (w <= 0 || h <= 0) return null;
             // Hardware-accelerated WebView often draws nothing into a CPU canvas.
             // Force a software layer while capturing so pixels are real.
-            int prevLayer = webView.getLayerType();
-            boolean wasHardwareAccelerated = webView.isHardwareAccelerated();
+            prevLayer = webView.getLayerType();
             webView.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
             Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
             Canvas c = new Canvas(bmp);
             webView.draw(c);
-            webView.setLayerType(prevLayer, null);
             return bmp;
         } catch (Exception e) {
             return null;
+        } finally {
+            try { webView.setLayerType(prevLayer, null); } catch (Exception ignored) {}
         }
     }
 
     void tapAt(int x, int y) {
+        // clamp inside the WebView so the tap always lands
+        int w = webView.getWidth();
+        int h = webView.getHeight();
+        if (x < 0) x = 0;
+        if (y < 0) y = 0;
+        if (x >= w) x = w - 1;
+        if (y >= h) y = h - 1;
         // dispatch a tap in app coordinates via TouchUtils
         TouchUtils.tap(this, webView, x, y);
     }

@@ -125,7 +125,11 @@ public class TemplateMatcher {
         float v1 = sumTS - (float)sumT * sumS / n;
         float d1 = (float)Math.sqrt(Math.max(0L, (long)sumTT - (float)sumT * sumT / n));
         float d2 = (float)Math.sqrt(Math.max(0L, (long)sumSS - (float)sumS * sumS / n));
-        if (d1 < 1e-6f || d2 < 1e-6f) return -2f;
+        if (d2 < 1e-3f) return -2f; // screen window is a flat region -> no signal
+        if (d1 < 1e-3f) {
+            // template is nearly uniform (e.g. plain monochrome icon): use non-centered correlation
+            return (float)sumTS / ((float)Math.sqrt(sumTT) * d2 + 1e-6f);
+        }
         return v1 / (d1 * d2);
     }
 }
