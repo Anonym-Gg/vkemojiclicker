@@ -43,6 +43,7 @@ public class MainActivity extends AppCompatActivity {
 
     // region Main UI
     FrameLayout mainFrame;
+    LinearLayout toolbar;          // bottom control panel (collapsible)
     WebView webView;
     CursorOverlay cursorOverlay;
     ScrollView pickerPanel;
@@ -50,6 +51,8 @@ public class MainActivity extends AppCompatActivity {
 
     boolean autoLoop = false;
     boolean useDefaultSearch = false; // when true: search built-in ⚔️ (priority) and 🎁 (normal)
+    boolean panelCollapsed = true;    // floating bubble mode (panel hidden)
+    TextView bubble;                  // floating circle button to show/collapse the panel
 
     // Built-in default templates (rendered), used when "Поиск по умолчанию" is on
     Bitmap defaultPriorityTemplate = null; // ⚔️
@@ -247,7 +250,7 @@ public class MainActivity extends AppCompatActivity {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
         // bottom toolbar
-        LinearLayout toolbar = new LinearLayout(this);
+        toolbar = new LinearLayout(this);
         toolbar.setOrientation(LinearLayout.VERTICAL);
         toolbar.setPadding(dp(8), dp(4), dp(8), dp(4));
         toolbar.setBackgroundColor(0xFF2B2B2B);
@@ -323,14 +326,46 @@ public class MainActivity extends AppCompatActivity {
             autoCb.setChecked(false);
             Toast.makeText(this, "Остановлен", Toast.LENGTH_SHORT).show();
         });
+        Button collapseBtn = new Button(this);
+        collapseBtn.setText("Свернуть");
+        collapseBtn.setTextSize(12);
+        collapseBtn.setOnClickListener(v -> {
+            panelCollapsed = true;
+            toolbar.setVisibility(View.GONE);
+            bubble.setVisibility(View.VISIBLE);
+        });
         LinearLayout.LayoutParams lpB = new LinearLayout.LayoutParams(
                 dp(0), ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         searchBtn.setLayoutParams(lpB); autoCb.setLayoutParams(lpB); stopBtn.setLayoutParams(lpB);
-        btns.addView(searchBtn); btns.addView(autoCb); btns.addView(stopBtn);
+        btns.addView(searchBtn); btns.addView(autoCb); btns.addView(stopBtn); btns.addView(collapseBtn);
 
         toolbar.addView(pickerPanel);
         toolbar.addView(settingsPanel);
         toolbar.addView(btns);
+
+        // floating bubble (collapsed mode) — draggable, tap to expand
+        bubble = new TextView(this);
+        bubble.setText("⚔️");
+        bubble.setTextSize(26);
+        bubble.setGravity(Gravity.CENTER);
+        bubble.setBackgroundResource(android.R.drawable.alert_dark_frame);
+        bubble.setTextColor(Color.WHITE);
+        bubble.setPadding(dp(10), dp(10), dp(10), dp(10));
+        FrameLayout.LayoutParams blp = new FrameLayout.LayoutParams(dp(54), dp(54));
+        blp.gravity = Gravity.BOTTOM | Gravity.START;
+        blp.leftMargin = dp(16);
+        blp.bottomMargin = dp(16);
+        bubble.setLayoutParams(blp);
+        setupBubbleDrag();
+        bubble.setOnClickListener(v -> {
+            panelCollapsed = false;
+            bubble.setVisibility(View.GONE);
+            toolbar.setVisibility(View.VISIBLE);
+        });
+        // start collapsed so the VK page (login/input) is fully visible
+        toolbar.setVisibility(View.GONE);
+        bubble.setVisibility(View.VISIBLE);
+        panelCollapsed = true;
 
         // WebView fills the rest
         webView = new WebView(this);
@@ -350,10 +385,45 @@ public class MainActivity extends AppCompatActivity {
         content.addView(toolbar);
 
         mainFrame.addView(content);
+        mainFrame.addView(bubble);
         cursorOverlay = new CursorOverlay(this);
         mainFrame.addView(cursorOverlay);
 
         licenseLayout.addView(mainFrame);
+    }
+
+    // make the floating bubble draggable around the screen
+    void setupBubbleDrag() {
+        bubble.setOnTouchListener(new View.OnTouchListener() {
+            float startX, startY;
+            int startMarginLeft, startMarginBottom;
+            boolean moved;
+            @Override
+            public boolean onTouch(View v, android.view.MotionEvent event) {
+                switch (event.getAction()) {
+                    case android.view.MotionEvent.ACTION_DOWN:
+                        startX = event.getRawX();
+                        startY = event.getRawY();
+                        FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) v.getLayoutParams();
+                        startMarginLeft = lp.leftMargin;
+                        startMarginBottom = lp.bottomMargin;
+                        moved = false;
+                        return true;
+                    case android.view.MotionEvent.ACTION_MOVE:
+                        float dx = event.getRawX() - startX;
+                        float dy = event.getRawY() - startY;
+                        if (Math.abs(dx) > 6 || Math.abs(dy) > 6) moved = true;
+                        FrameLayout.LayoutParams lp2 = (FrameLayout.LayoutParams) v.getLayoutParams();
+                        lp2.leftMargin = startMarginLeft + (int) dx;
+                        lp2.bottomMargin = startMarginBottom - (int) dy;
+                        v.setLayoutParams(lp2);
+                        return true;
+                    case android.view.MotionEvent.ACTION_UP:
+                        return moved; // if moved, consume; else let onClick fire
+                }
+                return false;
+            }
+        });
     }
 
     void startAction() {
