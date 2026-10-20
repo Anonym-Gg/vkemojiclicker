@@ -537,7 +537,7 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         overlay = new OverlayBubble(this,
-                this::startAction,     // ВКЛ — кликер (с тем же стартом что и кнопка)
+                () -> { autoLoop = true; startAction(); }, // ВКЛ — авто-цикл
                 () -> { autoLoop = false; Toast.makeText(this, "Стоп", Toast.LENGTH_SHORT).show(); },
                 () -> { /* открыть настройки в приложении: развернуть панель */ });
         overlay.show();

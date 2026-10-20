@@ -11,6 +11,7 @@ import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 /**
@@ -76,17 +77,17 @@ public class OverlayBubble {
         settBtn.setTextSize(12);
         settBtn.setOnClickListener(v -> onSettings.run());
         Button hideBtn = new Button(context);
-        hideBtn.setText("Скрыть панель");
+        hideBtn.setText("Скрыть");
         hideBtn.setTextSize(12);
         hideBtn.setOnClickListener(v -> togglePanel());
 
-        FrameLayout row = new FrameLayout(context);
-        startBtn.setX(0); stopBtn.setX(90 * dp); settBtn.setX(150 * dp); hideBtn.setX(250 * dp);
+        LinearLayout row = new LinearLayout(context);
+        row.setOrientation(LinearLayout.HORIZONTAL);
         row.addView(startBtn);
         row.addView(stopBtn);
         row.addView(settBtn);
         row.addView(hideBtn);
-        panel.addView(row, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        panel.addView(row, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         panel.setVisibility(View.GONE);
 
         panelParams = new WindowManager.LayoutParams(
