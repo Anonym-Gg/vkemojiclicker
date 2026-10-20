@@ -778,10 +778,9 @@ Bitmap captureWebView() {
             Canvas c = new Canvas(bmp);
             webView.draw(c);
             return bmp;
-        } catch (Exception e) {
+} catch (Exception e) {
             return null;
         }
-    }
     }
 
     void tapAt(int x, int y) {
