@@ -190,28 +190,47 @@ public class MainActivity extends AppCompatActivity {
         Toast.makeText(this, "Фото прикреплено", Toast.LENGTH_SHORT).show();
     }
 
-    EditText makeSettingInput(String def, int widthDp) {
+    EditText makeWideInput(String def) {
         EditText et = new EditText(this);
         et.setText(def);
-        et.setTextSize(12);
+        et.setTextSize(18);
         et.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
         et.setGravity(Gravity.CENTER);
         et.setTextColor(Color.WHITE);
         et.setBackgroundColor(0xFF444444);
         et.setSingleLine(true);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(widthDp), dp(32));
-        lp.leftMargin = dp(2);
-        lp.rightMargin = dp(2);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(90), dp(44));
+        lp.leftMargin = dp(4);
         et.setLayoutParams(lp);
         return et;
     }
 
-    TextView makeSettingLabel(String text) {
+    // one settings row: label (left, wide) + one or two inputs
+    LinearLayout makeSettingsRow(String label, EditText... inputs) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(4), dp(2), dp(4), dp(2));
         TextView tv = new TextView(this);
-        tv.setText(text);
-        tv.setTextSize(11);
-        tv.setTextColor(0xFFDDDDDD);
-        return tv;
+        tv.setText(label);
+        tv.setTextSize(14);
+        tv.setTextColor(0xFFEEEEEE);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                dp(0), ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        tv.setLayoutParams(lp);
+        row.addView(tv);
+        for (int i = 0; i < inputs.length; i++) {
+            if (i > 0) {
+                TextView sep = new TextView(this);
+                sep.setText("до");
+                sep.setTextSize(13);
+                sep.setTextColor(0xFFBBBBBB);
+                sep.setPadding(dp(2), 0, dp(2), 0);
+                row.addView(sep);
+            }
+            row.addView(inputs[i]);
+        }
+        return row;
     }
 
     void buildMainUI() {
@@ -239,28 +258,21 @@ public class MainActivity extends AppCompatActivity {
 
         pickerPanel.addView(pickerWrap);
 
-        // settings row: sensitivity, zone Y (%), cooldown
-        LinearLayout settingsRow = new LinearLayout(this);
-        settingsRow.setOrientation(LinearLayout.HORIZONTAL);
-        settingsRow.setPadding(dp(0), dp(4), dp(0), dp(4));
-        settingsRow.setGravity(Gravity.CENTER_VERTICAL);
+        // settings: 3 wide rows (sensitivity / zone / cooldown), each full-width
+        LinearLayout settingsPanel = new LinearLayout(this);
+        settingsPanel.setOrientation(LinearLayout.VERTICAL);
+        settingsPanel.setPadding(dp(4), dp(4), dp(4), dp(4));
+        settingsPanel.setBackgroundColor(0xFF2F2F2F);
 
-        sensInput = makeSettingInput("78", 3);
-        zoneY0Input = makeSettingInput("58", 3);
-        zoneY1Input = makeSettingInput("88", 3);
-        cdMinInput = makeSettingInput("1.4", 4);
-        cdMaxInput = makeSettingInput("1.9", 4);
+        sensInput = makeWideInput("78");
+        zoneY0Input = makeWideInput("58");
+        zoneY1Input = makeWideInput("88");
+        cdMinInput = makeWideInput("1.4");
+        cdMaxInput = makeWideInput("1.9");
 
-        settingsRow.addView(makeSettingLabel("Чувств:"));
-        settingsRow.addView(sensInput);
-        settingsRow.addView(makeSettingLabel("Зона%:"));
-        settingsRow.addView(zoneY0Input);
-        settingsRow.addView(makeSettingLabel("-"));
-        settingsRow.addView(zoneY1Input);
-        settingsRow.addView(makeSettingLabel("КД:"));
-        settingsRow.addView(cdMinInput);
-        settingsRow.addView(makeSettingLabel("-"));
-        settingsRow.addView(cdMaxInput);
+        settingsPanel.addView(makeSettingsRow("Чувствительность", sensInput));
+        settingsPanel.addView(makeSettingsRow("Зона от %", zoneY0Input, zoneY1Input));
+        settingsPanel.addView(makeSettingsRow("КД сек", cdMinInput, cdMaxInput));
 
         // buttons: Search once / Auto / Stop
         LinearLayout btns = new LinearLayout(this);
@@ -296,7 +308,7 @@ public class MainActivity extends AppCompatActivity {
         btns.addView(searchBtn); btns.addView(autoBtn); btns.addView(stopBtn);
 
         toolbar.addView(pickerPanel);
-        toolbar.addView(settingsRow);
+        toolbar.addView(settingsPanel);
         toolbar.addView(btns);
 
         // WebView fills the rest
