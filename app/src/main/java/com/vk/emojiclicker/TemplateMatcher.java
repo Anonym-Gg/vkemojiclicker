@@ -25,13 +25,14 @@ public class TemplateMatcher {
         return m;
     }
 
+    static final float[] SCALES = {0.45f, 0.6f, 0.8f, 1.0f, 1.25f, 1.5f};
+
     /** Всегда возвращает лучшее совпадение (даже ниже порога) или null, если шаблон больше экрана. */
     public static Match findBest(Bitmap screen, Bitmap template) {
         int sw = screen.getWidth(), sh = screen.getHeight();
         int tw = template.getWidth(), th = template.getHeight();
         if (tw >= sw || th >= sh) return null;
 
-        // screen luminance
         int[] s = new int[sw * sh];
         screen.getPixels(s, 0, sw, 0, 0, sw, sh);
         short[] lum = new short[sw * sh];
@@ -45,9 +46,7 @@ public class TemplateMatcher {
         float bestScore = -2f;
         int bestX = 0, bestY = 0, bestNw = 0, bestNh = 0;
 
-        // scales cover smaller & bigger variants of the emoji in the game grid
-        float[] scales = {0.45f, 0.6f, 0.8f, 1.0f, 1.25f, 1.5f};
-        for (float sc : scales) {
+        for (float sc : SCALES) {
             int nw = Math.max(4, (int)(tw * sc));
             int nh = Math.max(4, (int)(th * sc));
             if (nw >= sw || nh >= sh) continue;
@@ -56,16 +55,14 @@ public class TemplateMatcher {
             r.getPixels(tp, 0, nw, 0, 0, nw, nh);
             r.recycle();
 
-            // luminance + alpha mask of the scaled template
             short[] t = new short[nw * nh];
             boolean[] mask = new boolean[nw * nh];
             int maskCount = 0;
             for (int i = 0; i < tp.length; i++) {
                 int c = tp[i];
                 int a = (c >>> 24) & 0xff;
-                boolean usable = a > 25; // ignore nearly transparent pixels
-                mask[i] = usable;
-                if (usable) {
+                if (a > 25) {
+                    mask[i] = true;
                     t[i] = (short)(((c >> 16) & 0xff) * 299 / 1000
                                  + ((c >> 8) & 0xff) * 587 / 1000
                                  + (c & 0xff) * 114 / 1000);
@@ -127,8 +124,11 @@ public class TemplateMatcher {
         float d2 = (float)Math.sqrt(Math.max(0L, (long)sumSS - (float)sumS * sumS / n));
         if (d2 < 1e-3f) return -2f; // screen window is a flat region -> no signal
         if (d1 < 1e-3f) {
-            // template is nearly uniform (e.g. plain monochrome icon): use non-centered correlation
-            return (float)sumTS / ((float)Math.sqrt(sumTT) * d2 + 1e-6f);
+            // template is nearly uniform (e.g. plain monochrome icon): use non-centered correlation,
+            // but reject when the template itself is black (nothing to correlate with)
+            double normT = Math.sqrt(sumTT);
+            if (normT < 1e-3) return -2f;
+            return (float)sumTS / (normT * d2);
         }
         return v1 / (d1 * d2);
     }
