@@ -306,9 +306,9 @@ public class MainActivity extends AppCompatActivity {
         settingsPanel.setPadding(dp(4), dp(4), dp(4), dp(4));
         settingsPanel.setBackgroundColor(0xFF2F2F2F);
 
-        sensInput = makeWideInput("55");
-        zoneY0Input = makeWideInput("58");
-        zoneY1Input = makeWideInput("88");
+        sensInput = makeWideInput("50");
+        zoneY0Input = makeWideInput("30");
+        zoneY1Input = makeWideInput("95");
         cdMinInput = makeWideInput("1.4");
         cdMaxInput = makeWideInput("1.9");
         // restore persisted settings (kept across app updates)
@@ -645,12 +645,14 @@ public class MainActivity extends AppCompatActivity {
             }
             return false;
         }
-        // convert back to full screenshot coords, tap slightly below center (PC parity)
+        // convert back to full screenshot coords; tap the CENTRE of the match
+        // (the template is the emoji itself, so its centre is the tap point)
         final int absY = m.y + zoneOffset;
-        final int tapY = absY + (int)(m.templateH * 0.55f);
+        final int tapX = m.x;
+        final int tapY = absY;
         handler.post(() -> {
-            cursorOverlay.showAt(m.x, tapY);
-            tapAt(m.x, tapY);
+            cursorOverlay.showAt(tapX, tapY);
+            tapAt(tapX, tapY);
             Toast.makeText(this, "Кликнул: " + label + " (" + Math.round(m.score*100) + "%)", Toast.LENGTH_SHORT).show();
         });
         return true;
@@ -760,9 +762,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     void loadSettings() {
-        sensInput.setText(prefs.getString("sens", "55"));
-        zoneY0Input.setText(prefs.getString("zone0", "58"));
-        zoneY1Input.setText(prefs.getString("zone1", "88"));
+        sensInput.setText(prefs.getString("sens", "50"));
+        zoneY0Input.setText(prefs.getString("zone0", "30"));
+        zoneY1Input.setText(prefs.getString("zone1", "95"));
         cdMinInput.setText(prefs.getString("cdMin", "1.4"));
         cdMaxInput.setText(prefs.getString("cdMax", "1.9"));
         useDefaultSearch = prefs.getBoolean("useDefault", false);
