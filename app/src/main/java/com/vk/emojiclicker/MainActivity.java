@@ -546,12 +546,26 @@ public class MainActivity extends AppCompatActivity {
         overlay = new OverlayBubble(this,
                 () -> { autoLoop = true; startAction(); }, // ВКЛ — авто-цикл
                 () -> { autoLoop = false; Toast.makeText(this, "Стоп", Toast.LENGTH_SHORT).show(); },
-                () -> { /* открыть настройки в приложении: развернуть панель */ });
+                () -> { /* открыть настройки в приложении: развернуть панель */ },
+                this::runDiagnostics); // Диагностика
         overlay.show();
         Toast.makeText(this, "Пузырь ⚔️ поверх экрана. Перетащи его в угол, чтобы не мешал поиску", Toast.LENGTH_LONG).show();
     }
 
     void runDiagnostics() {
+        if (Settings.canDrawOverlays(this) && overlay == null) {
+            // auto-start overlay so diagnostics is visible over any app
+            overlay = new OverlayBubble(this,
+                    () -> { autoLoop = true; startAction(); },
+                    () -> { autoLoop = false; Toast.makeText(this, "Стоп", Toast.LENGTH_SHORT).show(); },
+                    () -> {},
+                    this::runDiagnostics);
+            overlay.show();
+        }
+        if (overlay == null && !Settings.canDrawOverlays(this)) {
+            Toast.makeText(this, "Сначала включи «Показать поверх всего» (кнопка на панели)", Toast.LENGTH_LONG).show();
+            return;
+        }
         StringBuilder sb = new StringBuilder();
         sb.append("ШАГ 1. Доступность: ");
         sb.append(VkClickerService.getInstance() != null ? "ВКЛ ✅" : "ВЫКЛ ❌").append("\n");
@@ -594,18 +608,23 @@ public class MainActivity extends AppCompatActivity {
     }
 
     void showDiag(String text) {
-        handler.post(() -> {
-            try {
-                new androidx.appcompat.app.AlertDialog.Builder(this)
-                        .setTitle("Диагностика")
-                        .setMessage(text)
-                        .setPositiveButton("ОК", null)
-                        .show();
-            } catch (Exception e) {
-                Toast.makeText(this, text, Toast.LENGTH_LONG).show();
-            }
-        });
-    }
+    handler.post(() -> {
+        // show in overlay first (visible over any app, works with capture ON)
+        if (overlay != null) {
+            overlay.showDiagnostics(text);
+            return;
+        }
+        try {
+            new androidx.appcompat.app.AlertDialog.Builder(this)
+                    .setTitle("Диагностика")
+                    .setMessage(text)
+                    .setPositiveButton("ОК", null)
+                    .show();
+        } catch (Exception e) {
+            Toast.makeText(this, text, Toast.LENGTH_LONG).show();
+        }
+    });
+}
 
     void requestScreenCapture() {
         try {

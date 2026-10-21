@@ -27,10 +27,14 @@ public class OverlayBubble {
     private final WindowManager.LayoutParams panelParams;
     private final TextView bubble;
     private final FrameLayout panel;
+    private final TextView diagText;
+    private final WindowManager.LayoutParams diagParams;
     private boolean panelVisible = false;
+    private boolean diagVisible = false;
     private final Runnable onStart;     // запуск поиска (из Activity)
     private final Runnable onStop;      // стоп
     private final Runnable onSettings;  // открыть настройки в Activity
+    private final Runnable onDiag;      // запустить диагностику
 
     private static int overlayType() {
         return android.os.Build.VERSION.SDK_INT >= 26
@@ -38,11 +42,12 @@ public class OverlayBubble {
                 : WindowManager.LayoutParams.TYPE_PHONE;
     }
 
-    public OverlayBubble(Context context, Runnable onStart, Runnable onStop, Runnable onSettings) {
+    public OverlayBubble(Context context, Runnable onStart, Runnable onStop, Runnable onSettings, Runnable onDiag) {
         this.ctx = context;
         this.onStart = onStart;
         this.onStop = onStop;
         this.onSettings = onSettings;
+        this.onDiag = onDiag;
         this.wm = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
         int dp = (int) context.getResources().getDisplayMetrics().density;
 
@@ -81,24 +86,68 @@ public class OverlayBubble {
         hideBtn.setText("Скрыть");
         hideBtn.setTextSize(12);
         hideBtn.setOnClickListener(v -> togglePanel());
+        Button diagBtn = new Button(context);
+        diagBtn.setText("Диагностика");
+        diagBtn.setTextSize(12);
+        diagBtn.setOnClickListener(v -> onDiag.run());
 
         LinearLayout row = new LinearLayout(context);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.addView(startBtn);
         row.addView(stopBtn);
         row.addView(settBtn);
+        row.addView(diagBtn);
         row.addView(hideBtn);
         panel.addView(row, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         panel.setVisibility(View.GONE);
 
         panelParams = new WindowManager.LayoutParams(
-                340 * dp, ViewGroup.LayoutParams.WRAP_CONTENT,
+                520 * dp, ViewGroup.LayoutParams.WRAP_CONTENT,
                 overlayType(),
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
                 PixelFormat.TRANSLUCENT);
         panelParams.gravity = Gravity.TOP | Gravity.START;
         panelParams.x = 10 * dp;
         panelParams.y = 270 * dp;
+
+        // diagnostics text overlay (visible over any app)
+        diagText = new TextView(context);
+        diagText.setTextSize(13);
+        diagText.setTextColor(Color.WHITE);
+        diagText.setBackgroundColor(0xDD000000);
+        diagText.setPadding(10 * dp, 8 * dp, 10 * dp, 8 * dp);
+        diagText.setTypeface(Typeface.MONOSPACE);
+        diagParams = new WindowManager.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+                overlayType(),
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                PixelFormat.TRANSLUCENT);
+        diagParams.gravity = Gravity.TOP | Gravity.START;
+        diagParams.x = 40 * dp;
+        diagParams.y = 60 * dp;
+    }
+
+    /** Показывает/обновляет текст диагностики поверх всех приложений. */
+    public void showDiagnostics(String text) {
+        try {
+            diagText.setText(text);
+            if (!diagVisible) {
+                wm.addView(diagText, diagParams);
+                diagVisible = true;
+            } else {
+                wm.updateViewLayout(diagText, diagParams);
+            }
+        } catch (Exception ignored) {}
+    }
+
+    /** Скрывает текст диагностики. */
+    public void hideDiagnostics() {
+        try {
+            if (diagVisible) {
+                wm.removeView(diagText);
+                diagVisible = false;
+            }
+        } catch (Exception ignored) {}
     }
 
     public void show() {
@@ -110,6 +159,7 @@ public class OverlayBubble {
 
     public void hide() {
         try {
+            hideDiagnostics();
             wm.removeView(bubble);
             wm.removeView(panel);
         } catch (Exception ignored) {}
